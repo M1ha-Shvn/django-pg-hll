@@ -1,10 +1,12 @@
 """
 This file contains a field to use in django models
 """
-from django.core.exceptions import ValidationError
-from django.db.models import Field, BinaryField
+from django.db.models import BinaryField, IntegerField, Func
+from django.db.models.lookups import Transform
 
-from .values import HllSet, HllValue, HllEmpty
+from .values import HllEmpty
+
+__all__ = ['HllField']
 
 
 class HllField(BinaryField):
@@ -24,7 +26,7 @@ class HllField(BinaryField):
 
     def __init__(self, *args, **kwargs):
         self._log2m = kwargs.get('log2m', self.custom_params['log2m'])
-        self._regwidth= kwargs.get('regwidth', self.custom_params['regwidth'])
+        self._regwidth = kwargs.get('regwidth', self.custom_params['regwidth'])
         self._expthresh = kwargs.get('expthresh', self.custom_params['expthresh'])
         self._sparseon = kwargs.get('sparseon', self.custom_params['sparseon'])
 
@@ -35,13 +37,16 @@ class HllField(BinaryField):
 
         # Only include kwarg if it's not the default
         for param_name, default in self.custom_params.items():
-            if getattr(self, '_%s' % name) != default:
-                kwargs[name] = getattr(self, '_%s' % name)
+            if getattr(self, '_%s' % param_name) != default:
+                kwargs[name] = getattr(self, '_%s' % param_name)
 
         return name, path, args, kwargs
 
     def db_type(self, connection):
         return 'hll(%d, %d, %d, %d)' % (self._log2m, self._regwidth, self._expthresh, self._sparseon)
+
+    def rel_db_type(self, connection):
+        return 'hll'
 
     def get_internal_type(self):
         return self.__class__.__name__
@@ -54,14 +59,14 @@ class HllField(BinaryField):
             return HllEmpty()
         return default
 
-    def get_db_prep_value(self, value, connection, prepared=False):
-        value = super().get_db_prep_value(value, connection, prepared)
-        if value is not None:
-            return connection.Database.Binary(value)
 
-        if isinstance(value, HllValue):
-            sql, params = value.get_sql(connection)
+@HllField.register_lookup
+class CardinalityTransform(Transform):
+    lookup_name = 'cardinality'
+    output_field = IntegerField()
 
-        return params
+    def as_sql(self, compiler, connection, function=None, template=None):
+        lhs, params = compiler.compile(self.lhs)
+        return 'hll_cardinality(%s)' % lhs, params
 
-from django.db.models import F
+

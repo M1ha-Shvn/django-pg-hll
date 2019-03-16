@@ -7,35 +7,44 @@ import six
 from abc import abstractmethod, ABC
 from django.contrib.postgres.fields import HStoreField
 from django.db.backends.postgresql.base import DatabaseWrapper
+from django.db.models import Func
+from django.db.models.expressions import CombinedExpression
 
 from django_pg_hll.utils import get_subclasses
 
 
-class HllValue(ABC):
-    @abstractmethod
-    def get_sql(self, connection):  # type: (DatabaseWrapper) -> Tuple[str, tuple]
-        """
-        Generates hashed sql expression for this value
-        :param connection: Connection, sql is got for
-        :return: A tuple with sql expression and parameters to substitute to it
-        """
-        raise NotImplementedError()
+class HllJoinMixin:
+    CONCAT = '||'
+
+    def __or__(self, other):
+        if isinstance(other, HllValue):
+            val = other
+        else:
+            val = HllDataValue.parse_data(other)
+        return HllCombinedExpression(self, self.CONCAT, val)
+
+
+class HllCombinedExpression(HllJoinMixin, CombinedExpression):
+    pass
+
+
+class HllValue(ABC, HllJoinMixin, Func):
+    pass
 
 
 class HllEmpty(HllValue):
-    def get_sql(self, connection):
-        return 'hll_empty()', ()
+    function = 'hll_empty'
+
+    def __init__(self, **extra):
+        super(HllEmpty, self).__init__(**extra)
 
 
 class HllDataValue(HllValue):
-    def __init__(self, data):  # type: (Any) -> None
-        """
-        :param data: Data to build value from
-        """
-        if self.check(data):
-            self._data = data
-        else:
+    def __init__(self, data, *args, **extra):
+        if not self.check(data):
             raise ValueError('Data is not supported by %s' % self.__class__.__name__)
+
+        super(HllDataValue, self).__init__(data, *args, **extra)
 
     @classmethod
     @abstractmethod
@@ -55,36 +64,26 @@ class HllDataValue(HllValue):
 
         raise ValueError('No appropriate HllDataValue found')
 
-    def get_db_prep_value(self, connection):  # type: (DatabaseWrapper) -> Any
-        """
-        Formats _data for passing to database
-        :param connection: Connection, sql is got for
-        :return: Formatted data
-        """
-        return self._data
-
-    def __hash__(self):
-        return hash(self._data)
-
 
 class HllPrimitiveValue(HllDataValue, ABC):
     # Abstract class property
     db_type = None
+    template = 'hll_empty() || %(function)s(%(expressions)s)'
 
-    def __init__(self, data, **kwargs):  # type: (Any, **dict) -> None
+    def __init__(self, data, **extra):  # type: (Any, **dict) -> None
         """
         :param data: Data to build value from
         :param hash_seed: Optional hash seed. See https://github.com/citusdata/postgresql-hll#the-importance-of-hashing
         """
-        self._hash_seed = kwargs.pop('hash_seed', None)
-        self._data = data
-        super(HllPrimitiveValue, self).__init__()
-
-    def get_sql(self, connection):
-        if self._hash_seed is not None:
-            return 'hll_hash_{0}(%s, %s)'.format(self.db_type), (self.get_db_prep_value(connection), self._hash_seed)
+        hash_seed = extra.pop('hash_seed', None)
+        if hash_seed is not None:
+            super(HllPrimitiveValue, self).__init__(data, hash_seed, **extra)
         else:
-            return 'hll_hash_{0}(%s)'.format(self.db_type), (self.get_db_prep_value(connection),)
+            super(HllPrimitiveValue, self).__init__(data, **extra)
+
+    @property
+    def function(self):
+        return 'hll_hash_%s' % self.db_type
 
 
 class HllBoolean(HllPrimitiveValue):
@@ -94,9 +93,6 @@ class HllBoolean(HllPrimitiveValue):
     def check(cls, data):
         return type(data) is bool
 
-    def get_db_prep_value(self, connection):
-        return bool(self._data)
-
 
 class HllIntegerValue(HllPrimitiveValue):
     # Abstract class property
@@ -105,9 +101,6 @@ class HllIntegerValue(HllPrimitiveValue):
     @classmethod
     def check(cls, data):
         return type(data) is int and cls.value_range[0] <= data <= cls.value_range[1]
-
-    def get_db_prep_value(self, connection):
-        return int(self._data)
 
 
 class HllSmallInt(HllIntegerValue):
@@ -132,9 +125,6 @@ class HllByteA(HllPrimitiveValue):
     def check(cls, data):
         return isinstance(data, bytes)
 
-    def get_db_prep_value(self, connection):
-        return connection.Database.Binary(self._data)
-
 
 class HllText(HllPrimitiveValue):
     db_type = 'text'
@@ -142,9 +132,6 @@ class HllText(HllPrimitiveValue):
     @classmethod
     def check(cls, data):
         return isinstance(data, six.string_types)
-
-    def get_db_prep_value(self, connection):
-        return str(self._data)
 
 
 class HllAny(HllPrimitiveValue):
@@ -159,9 +146,13 @@ class HllSet(HllDataValue):
     """
     Aggregate of HllValue objects
     """
-    def __init__(self, data=None):  # type: (Optional[Any], Optional[int]) -> None
-        data = self._parse_iterable(data) if data is not None else set()
-        super(HllSet, self).__init__(data)
+    def __init__(self, *args, **extra):
+        if args:
+            data = self._parse_iterable(args[0])
+            args = args[:1]
+        else:
+            data = set()
+        super(HllSet, self).__init__(data, *args, **extra)
 
     @classmethod
     def _parse_item(cls, item):  # type: (Any) -> HllValue
@@ -187,49 +178,28 @@ class HllSet(HllDataValue):
         :param data: Data to parse
         :return: A set of HllValue objects
         """
-        return {cls._parse_item(item) for item in data}
+        res = HllEmpty()
+        for item in data:
+            res |= cls._parse_item(item)
+        return res
 
     @classmethod
     def check(cls, data):
         return isinstance(data, Iterable)
 
-    def get_sql(self, connection):
-        if not self._data:
-            return HllEmpty().get_sql(connection)
-
-        tpl = '''
-        (SELECT hll_add_agg(val)
-        FROM (VALUES %s ) AS values_hll(val))
-        '''
-        sql, params = zip(*(item.get_sql(connection) for item in self._data))
-        values_sql = '(%s)' % '), ('.join(sql)
-        return tpl % values_sql, tuple(chain(*params))
-
-    def get_db_prep_value(self, connection):  # type: (DatabaseWrapper) -> Any
-        raise NotImplementedError('This method is not used by HllSet class')
-
-    def update(self, other):  # type: (Union[HllSet, Iterable]) -> None
-        """
-        Adds elements to this HllSet from another iterable
-        :return:
-        """
-        hll_set = other if isinstance(other, HllSet) else self.parse_data(other)
-        self._data.update(hll_set._data)
-
-    def add(self, value):  # type: (Any) -> None
-        """
-        Adds an item to HllSet
-        :param value: Value to add
-        :return: None
-        """
-        value = self._parse_item(value)
-        self.add(value)
-
-    def __deepcopy__(self, memodict={}):
-        return HllSet(deepcopy(self._data))
-
-    def __or__(self, other):
-        return deepcopy(self).update(other)
-
-
-HStoreField
+    # def update(self, other):  # type: (Union[HllSet, Iterable]) -> None
+    #     """
+    #     Adds elements to this HllSet from another iterable
+    #     :return:
+    #     """
+    #     hll_set = other if isinstance(other, HllSet) else self._parse_iterable(other)
+    #     self
+    #
+    # def add(self, value):  # type: (Any) -> None
+    #     """
+    #     Adds an item to HllSet
+    #     :param value: Value to add
+    #     :return: None
+    #     """
+    #     value = self._parse_item(value)
+    #     self.add(value)
