@@ -2,7 +2,7 @@ from collections import Iterable
 from typing import Any, Set
 
 import six
-from abc import abstractmethod, ABC
+from abc import abstractmethod, ABCMeta
 from django.db.models import Func
 from django.db.models.expressions import CombinedExpression, F
 
@@ -25,7 +25,7 @@ class HllCombinedExpression(HllJoinMixin, CombinedExpression):
     pass
 
 
-class HllValue(ABC, HllJoinMixin, Func):
+class HllValue(six.with_metaclass(ABCMeta, HllJoinMixin, Func)):
     pass
 
 
@@ -62,7 +62,7 @@ class HllDataValue(HllValue):
         raise ValueError('No appropriate HllDataValue found')
 
 
-class HllPrimitiveValue(HllDataValue, ABC):
+class HllPrimitiveValue(six.with_metaclass(ABCMeta, HllDataValue)):
     # Abstract class property
     db_type = None
     template = 'hll_empty() || %(function)s(%(expressions)s)'
