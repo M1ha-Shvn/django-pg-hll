@@ -4,8 +4,7 @@ from typing import Any
 
 import six
 from abc import abstractmethod, ABCMeta
-from django.db.models import Func
-from django.db.models.expressions import CombinedExpression, F
+from django.db.models.expressions import CombinedExpression, F, Func
 
 
 class HllJoinMixin:
