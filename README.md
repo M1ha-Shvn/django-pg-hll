@@ -37,7 +37,7 @@ In order to create and update Hll this library introduces a set of functions
 (corresponding to [postgres-hll hash functions](https://github.com/citusdata/postgresql-hll#hashing)),
  to hash values:
 ```python
-from django_pg_hll import *
+from django_pg_hll import HllField
 
 # Empty hll
 HllEmpty()
@@ -62,7 +62,7 @@ HllAny('some data')
 
 To save a value to HllField, you can pass any of these functions as a value:
 ```python
-from django_pg_hll import *
+from django_pg_hll import HllInteger
 
 instance = MyModel.objects.create(hll=HllInteger(123))
 instance.hll |= HllInteger(456)
@@ -77,7 +77,7 @@ In this case library will try to detect appropriate hashing function, based on v
 *Important*: Native django functions can't be used as chain start, as `|` operator is redeclared for HllValue instances.  
 Example:
 ```python
-from django_pg_hll import *
+from django_pg_hll import HllInteger
 from django.db.models import F
 
 instance = MyModel.objects.create(hll=HllInteger(123))
@@ -116,7 +116,8 @@ In order to count aggregations and annotations, library provides 3 aggregate fun
   P. s. django doesn't give ability to use function inside function.
 ```python
 from django.db import models
-from django_pg_hll import Cardinality, HllField, UnionAggCardinality, HllInteger
+from django_pg_hll import HllField, HllInteger
+from django_pg_hll.aggregate import Cardinality, UnionAggCardinality
 
 
 class ForeignModel(models.Model):
@@ -145,6 +146,9 @@ ForeignModel.objects.annotate(card=UnionAggCardinality('testmodel__hll_field')).
 This library provides a `hll_concat` set function,
 allowing to use hll in bulk_update and bulk_update_or_create queries.
 ```python
+# !!! Don't forget to import function, or django_pg_bulk_update will not find it
+from django_pg_hll.bulk_update import HllConcatFunction
+
 MyModel.objects.bulk_update_or_create([
     {'id': 100501, 'hll_field': HllInteger(1)},
     {'id': 100502, 'hll_field': HllInteger(2) | HllInteger(3)}
