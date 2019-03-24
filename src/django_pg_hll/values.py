@@ -1,14 +1,10 @@
 from collections import Iterable
-from copy import deepcopy
-from itertools import chain
-from typing import Any, Tuple, Set, Optional, Union
+from typing import Any, Set
 
 import six
 from abc import abstractmethod, ABC
-from django.contrib.postgres.fields import HStoreField
-from django.db.backends.postgresql.base import DatabaseWrapper
 from django.db.models import Func
-from django.db.models.expressions import CombinedExpression
+from django.db.models.expressions import CombinedExpression, F
 
 from django_pg_hll.utils import get_subclasses
 
@@ -17,7 +13,8 @@ class HllJoinMixin:
     CONCAT = '||'
 
     def __or__(self, other):
-        if isinstance(other, HllValue):
+        # Functions, field references and other HllValues shouldn't be parsed
+        if isinstance(other, (F, HllValue, Func)):
             val = other
         else:
             val = HllDataValue.parse_data(other)
