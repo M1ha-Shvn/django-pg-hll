@@ -1,4 +1,5 @@
 from collections import Iterable
+from copy import deepcopy
 from typing import Any, Set
 
 import six
@@ -14,11 +15,15 @@ class HllJoinMixin:
 
     def __or__(self, other):
         # Functions, field references and other HllValues shouldn't be parsed
-        if isinstance(other, (F, HllValue, Func)):
-            val = other
+        if not isinstance(other, (F, HllValue, Func)):
+            other = HllDataValue.parse_data(other)
         else:
-            val = HllDataValue.parse_data(other)
-        return HllCombinedExpression(self, self.CONCAT, val)
+            other = deepcopy(other)
+
+        if isinstance(other, HllDataValue):
+            other.added_to_hll_set()
+
+        return HllCombinedExpression(self, self.CONCAT, other)
 
 
 class HllCombinedExpression(HllJoinMixin, CombinedExpression):
@@ -37,11 +42,22 @@ class HllEmpty(HllValue):
 
 
 class HllDataValue(HllValue):
+    # This value is used to form real template and can be redeclared in descendants
+    base_template = '%(function)s(%(expressions)s)'
+
     def __init__(self, data, *args, **extra):
         if not self.check(data):
             raise ValueError('Data is not supported by %s' % self.__class__.__name__)
 
+        # hll_empty() is added in order to init set, if it's create or bulk operation
+        if 'template' not in extra:
+            extra['template'] = 'hll_empty() || %s' % self.base_template
+
         super(HllDataValue, self).__init__(data, *args, **extra)
+
+    def added_to_hll_set(self):
+        # Remove hll_empty() prefix from value, it will be added by set
+        self.extra['template'] = self.base_template
 
     @classmethod
     @abstractmethod
@@ -55,23 +71,25 @@ class HllDataValue(HllValue):
 
     @classmethod
     def parse_data(cls, data):  # type: (Any) -> HllDataValue
-        for klass in get_subclasses(HllDataValue, recursive=True):
+        # !!! Class order is important here!!! Can't use get_subclasses
+        for klass in (HllBoolean, HllSmallInt, HllInteger, HllBigint, HllByteA, HllText, HllSet, HllAny):
             if klass.check(data):
                 return klass(data)
 
-        raise ValueError('No appropriate HllDataValue found')
+        raise ValueError('No appropriate class found for value of type: %s' % str(type(data)))
 
 
 class HllPrimitiveValue(six.with_metaclass(ABCMeta, HllDataValue)):
     # Abstract class property
     db_type = None
-    template = 'hll_empty() || %(function)s(%(expressions)s)'
 
     def __init__(self, data, **extra):  # type: (Any, **dict) -> None
         """
         :param data: Data to build value from
         :param hash_seed: Optional hash seed. See https://github.com/citusdata/postgresql-hll#the-importance-of-hashing
         """
+        extra['db_type'] = self.db_type
+
         hash_seed = extra.pop('hash_seed', None)
         if hash_seed is not None:
             super(HllPrimitiveValue, self).__init__(data, hash_seed, **extra)
@@ -94,10 +112,11 @@ class HllBoolean(HllPrimitiveValue):
 class HllIntegerValue(HllPrimitiveValue):
     # Abstract class property
     value_range = None
+    base_template = '%(function)s(%(expressions)s::%(db_type)s)'
 
     @classmethod
     def check(cls, data):
-        return type(data) is int and cls.value_range[0] <= data <= cls.value_range[1]
+        return cls.value_range and type(data) is int and cls.value_range[0] <= data <= cls.value_range[1]
 
 
 class HllSmallInt(HllIntegerValue):
@@ -143,12 +162,15 @@ class HllSet(HllDataValue):
     """
     Aggregate of HllValue objects
     """
+    base_template = '%(expressions)s'
+
     def __init__(self, *args, **extra):
         if args:
             data = self._parse_iterable(args[0])
-            args = args[:1]
+            args = args[1:]
         else:
-            data = set()
+            data = HllEmpty()
+
         super(HllSet, self).__init__(data, *args, **extra)
 
     @classmethod
@@ -169,34 +191,20 @@ class HllSet(HllDataValue):
         return item
 
     @classmethod
-    def _parse_iterable(cls, data):  # type: (Iterable[Any]) -> Set[HllValue]
+    def _parse_iterable(cls, data):  # type: (Iterable[Any]) -> HllCombinedExpression
         """
         Parses input iterable into set of HllValue objects
         :param data: Data to parse
         :return: A set of HllValue objects
         """
-        res = HllEmpty()
-        for item in data:
+        it = iter(data)
+        res = cls._parse_item(next(it))
+
+        for item in it:
             res |= cls._parse_item(item)
+
         return res
 
     @classmethod
     def check(cls, data):
-        return isinstance(data, Iterable)
-
-    # def update(self, other):  # type: (Union[HllSet, Iterable]) -> None
-    #     """
-    #     Adds elements to this HllSet from another iterable
-    #     :return:
-    #     """
-    #     hll_set = other if isinstance(other, HllSet) else self._parse_iterable(other)
-    #     self
-    #
-    # def add(self, value):  # type: (Any) -> None
-    #     """
-    #     Adds an item to HllSet
-    #     :param value: Value to add
-    #     :return: None
-    #     """
-    #     value = self._parse_item(value)
-    #     self.add(value)
+        return isinstance(data, (Iterable, HllCombinedExpression))

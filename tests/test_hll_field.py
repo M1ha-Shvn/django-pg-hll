@@ -6,7 +6,10 @@ from django.test import TestCase
 
 from django_pg_hll import HllEmpty, HllInteger
 from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality
+
+# !!! Don't remove this import, or bulk_update will not see function name
 from django_pg_hll.bulk_update import HllConcatFunction
+
 from django_pg_hll.compatibility import django_pg_bulk_update_available
 from tests.models import TestModel, FKModel
 
@@ -23,6 +26,15 @@ class HllFieldTest(TestCase):
 
     def test_combine(self):
         TestModel.objects.create(hll_field=HllEmpty() | HllInteger(1) | HllInteger(2))
+
+    def test_combine_auto_parse(self):
+        instance = TestModel.objects.create(hll_field=HllEmpty() | 2 | 3)
+        self.assertEqual(2, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(pk=instance.pk).
+                         values_list('card', flat=True)[0])
+
+        instance = TestModel.objects.create(hll_field=HllEmpty() | {2, 3})
+        self.assertEqual(2, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(pk=instance.pk).
+                         values_list('card', flat=True)[0])
 
     def test_create(self):
         TestModel.objects.create(hll_field=HllEmpty())
