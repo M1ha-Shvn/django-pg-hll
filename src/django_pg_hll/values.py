@@ -1,19 +1,17 @@
 from collections import Iterable
 from copy import deepcopy
-from typing import Any, Set
+from typing import Any
 
 import six
 from abc import abstractmethod, ABCMeta
 from django.db.models import Func
 from django.db.models.expressions import CombinedExpression, F
 
-from django_pg_hll.utils import get_subclasses
-
 
 class HllJoinMixin:
     CONCAT = '||'
 
-    def __or__(self, other):
+    def __or__(self, other):  # type: (Any) -> HllCombinedExpression
         # Functions, field references and other HllValues shouldn't be parsed
         if not isinstance(other, (F, HllValue, Func)):
             other = HllDataValue.parse_data(other)
@@ -55,7 +53,7 @@ class HllDataValue(HllValue):
 
         super(HllDataValue, self).__init__(data, *args, **extra)
 
-    def added_to_hll_set(self):
+    def added_to_hll_set(self):  # type: () -> None
         # Remove hll_empty() prefix from value, it will be added by set
         self.extra['template'] = self.base_template
 

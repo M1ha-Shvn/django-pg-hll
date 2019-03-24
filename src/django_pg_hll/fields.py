@@ -1,7 +1,7 @@
 """
 This file contains a field to use in django models
 """
-from django.db.models import BinaryField, IntegerField, Func
+from django.db.models import BinaryField, IntegerField
 from django.db.models.lookups import Transform
 
 from .values import HllEmpty
@@ -33,7 +33,7 @@ class HllField(BinaryField):
         super(HllField, self).__init__(*args, **kwargs)
 
     def deconstruct(self):
-        name, path, args, kwargs = super().deconstruct()
+        name, path, args, kwargs = super(HllField, self).deconstruct()
 
         # Only include kwarg if it's not the default
         for param_name, default in self.custom_params.items():
@@ -54,7 +54,7 @@ class HllField(BinaryField):
     def get_default(self):
         if self.has_default() and not callable(self.default):
             return self.default
-        default = super().get_default()
+        default = super(HllField, self).get_default()
         if default == '':
             return HllEmpty()
         return default

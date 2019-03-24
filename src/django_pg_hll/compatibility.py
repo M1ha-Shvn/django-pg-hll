@@ -1,6 +1,6 @@
 
 
-def django_pg_bulk_update_available() -> bool:
+def django_pg_bulk_update_available():  # type: () -> bool
     """
     Tests if django-pb-bulk-update library is installed
     :return: Boolean
