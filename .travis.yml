@@ -162,7 +162,7 @@ before_install:
   - sudo cp /etc/postgresql/{9.6,10}/main/pg_hba.conf
 
   # Install postgres hll
-  - sudo apt-get install postgresql-hll-$PG
+  - sudo apt-get install postgresql-$PG-hll
 
   # Start PostgreSQL version we need
   - sudo service postgresql stop && sudo service postgresql start $PG
