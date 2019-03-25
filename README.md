@@ -18,7 +18,7 @@ or via setup.py:
 
 ## Usage
 ### Prerequisites
-Install [postgresql-hll] extension (https://github.com/citusdata/postgresql-hll#install)
+Install [postgresql-hll extension](https://github.com/citusdata/postgresql-hll#install)
 
 ### Creating table with hll field
 * Add HllField to your model:
@@ -73,7 +73,7 @@ instance.save()
 Hll values can be chained with each other and functions like `django.db.models.F` using `|` operator.  
 The chaining result will be `django_pg_hll.values.HllSet` instance, which can be also saved to database.  
 You can also chain simple values and iterables. 
-In this case library will try to detect appropriate hashing function, based on value.  
+In this case, library will try to detect appropriate hashing function, based on value.  
 *Important*: Native django functions can't be used as chain start, as `|` operator is redeclared for HllValue instances.  
 Example:
 ```python
@@ -110,9 +110,9 @@ In order to count aggregations and annotations, library provides 3 aggregate fun
 * `django_pg_hll.aggregate.Cardinality`
   Counts cardinality of hll field
 * `django_pg_hll.aggregate.UnionAgg`
-  Aggregates multiple hll fields to one hll. See 
+  Aggregates multiple hll fields to one hll.
 * `django_pg_hll.aggregate.UnionAggCardinality`
-  Counts cardinality of hll, combined by UnionAgg function. In fact, it does `Cardinality(UnionAgg(hll))`.
+  Counts cardinality of hll, combined by UnionAgg function. In fact, it does `Cardinality(UnionAgg(hll))`.  
   P. s. django doesn't give ability to use function inside function.
 ```python
 from django.db import models
@@ -144,7 +144,7 @@ ForeignModel.objects.annotate(card=UnionAggCardinality('testmodel__hll_field')).
  
 ### [django-pg-bulk-update](https://github.com/M1hacka/django-pg-bulk-update) integration
 This library provides a `hll_concat` set function,
-allowing to use hll in bulk_update and bulk_update_or_create queries.
+allowing to use hll in `bulk_update` and `bulk_update_or_create` queries.
 ```python
 # !!! Don't forget to import function, or django_pg_bulk_update will not find it
 from django_pg_hll.bulk_update import HllConcatFunction
