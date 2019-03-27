@@ -4,7 +4,7 @@ from typing import Any
 
 import six
 from abc import abstractmethod, ABCMeta
-from django.db.models.expressions import CombinedExpression, F, Func
+from django.db.models.expressions import CombinedExpression, F, Func, Value
 
 
 class HllJoinMixin:
@@ -50,7 +50,7 @@ class HllDataValue(HllValue):
         if 'template' not in extra:
             extra['template'] = 'hll_empty() || %s' % self.base_template
 
-        super(HllDataValue, self).__init__(data, *args, **extra)
+        super(HllDataValue, self).__init__(Value(data), *args, **extra)
 
     def added_to_hll_set(self):  # type: () -> None
         # Remove hll_empty() prefix from value, it will be added by set
@@ -155,20 +155,28 @@ class HllAny(HllPrimitiveValue):
         return True
 
 
-class HllSet(HllDataValue):
+class HllSet(HllValue):
     """
     Aggregate of HllValue objects
     """
-    base_template = '%(expressions)s'
-
     def __init__(self, *args, **extra):
         if args:
-            data = self._parse_iterable(args[0])
+            if not self.check(args[0]):
+                raise ValueError('Data is not supported by %s' % self.__class__.__name__)
+
+            if isinstance(args[0], HllValue):
+                self.data = (args[0],)
+
+                if isinstance(args[0], HllDataValue):
+                    args[0].added_to_hll_set()
+            else:
+                self.data = tuple(self._parse_item(item) for item in args[0])
+
             args = args[1:]
         else:
-            data = HllEmpty()
+            self.data = tuple()
 
-        super(HllSet, self).__init__(data, *args, **extra)
+        super(HllSet, self).__init__(*args, **extra)
 
     @classmethod
     def _parse_item(cls, item):  # type: (Any) -> HllValue
@@ -185,23 +193,21 @@ class HllSet(HllDataValue):
         else:
             item = HllDataValue.parse_data(item)
 
+        item.added_to_hll_set()
+
         return item
 
     @classmethod
-    def _parse_iterable(cls, data):  # type: (Iterable[Any]) -> HllCombinedExpression
-        """
-        Parses input iterable into set of HllValue objects
-        :param data: Data to parse
-        :return: A set of HllValue objects
-        """
-        it = iter(data)
-        res = cls._parse_item(next(it))
-
-        for item in it:
-            res |= cls._parse_item(item)
-
-        return res
-
-    @classmethod
     def check(cls, data):
-        return isinstance(data, (Iterable, HllCombinedExpression))
+        return isinstance(data, (Iterable, HllValue))
+
+    def as_sql(self, compiler, connection, function=None, template=None):
+        sql, params = HllEmpty().as_sql(compiler, connection)
+
+        for item in self.data:
+            item_sql, item_params = item.as_sql(compiler, connection)
+            sql += ' || %s' % item_sql
+            params.extend(item_params)
+
+        return sql, params
+
