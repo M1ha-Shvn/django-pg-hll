@@ -153,9 +153,6 @@ class HllByteATest(ValueTest):
         with self.assertRaises(ValueError):
             HllByteA(None)
 
-        with self.assertRaises(ValueError):
-            HllByteA('test')
-
 
 class HllTextTest(ValueTest):
     def test_sql(self):
