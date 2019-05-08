@@ -4,7 +4,9 @@ This file contains a field to use in django models
 from django.db.models import BinaryField, IntegerField
 from django.db.models.lookups import Transform
 
-from .values import HllEmpty
+import six
+
+from .values import HllEmpty, HllFromHex
 
 __all__ = ['HllField']
 
@@ -50,6 +52,15 @@ class HllField(BinaryField):
 
     def get_internal_type(self):
         return self.__class__.__name__
+
+    def get_db_prep_value(self, value, connection, prepared=False):
+        # Psycopg2 returns Binary results as hex string, prefixed by \x
+        # BinaryField requires bytes to be saved
+        # But none of these can be converted to HLL by postgres directly
+        if isinstance(value, bytes) or isinstance(value, six.string_types) and value.startswith(r'\x'):
+            return HllFromHex(value, db_type=self.db_type(connection))
+        else:
+            return super(HllField, self).get_db_prep_value(value, connection, prepared=prepared)
 
     def get_default(self):
         if self.has_default() and not callable(self.default):

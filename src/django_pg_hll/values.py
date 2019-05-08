@@ -27,6 +27,26 @@ class HllCombinedExpression(HllJoinMixin, CombinedExpression):
     pass
 
 
+class HllFromHex(six.with_metaclass(ABCMeta, Func)):
+    """
+    Constructs hll that can be saved from binary data (or it's psycopg representation)
+    """
+    def __init__(self, data, *args, **extra):
+        db_type = extra.pop('db_type', 'hll')
+
+        # Psycopg2 returns Binary results as hex string, prefixed by \x but requires bytes for saving.
+        if isinstance(data, six.string_types) and data.startswith(r'\x'):
+            data = bytearray.fromhex(data[2:])
+        elif isinstance(data, bytes):
+            pass
+        else:
+            raise ValueError('data should be bytes instance or string starting with \\x')
+
+        self.template = extra.get('template', '%(expressions)s::{}'.format(db_type))
+
+        super(HllFromHex, self).__init__(Value(data), *args, **extra)
+
+
 class HllValue(six.with_metaclass(ABCMeta, HllJoinMixin, Func)):
     pass
 
@@ -77,9 +97,6 @@ class HllDataValue(HllValue):
 
 
 class HllPrimitiveValue(six.with_metaclass(ABCMeta, HllDataValue)):
-    # Abstract class property
-    db_type = None
-
     def __init__(self, data, **extra):  # type: (Any, **dict) -> None
         """
         :param data: Data to build value from
