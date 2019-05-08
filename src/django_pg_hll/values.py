@@ -36,7 +36,7 @@ class HllFromHex(six.with_metaclass(ABCMeta, Func)):
 
         # Psycopg2 returns Binary results as hex string, prefixed by \x but requires bytes for saving.
         if isinstance(data, six.string_types) and data.startswith(r'\x'):
-            data = bytes.fromhex(data[2:])
+            data = bytearray.fromhex(data[2:])
         elif isinstance(data, bytes):
             pass
         else:
