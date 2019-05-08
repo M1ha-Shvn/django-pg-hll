@@ -1,5 +1,6 @@
 from unittest import skipIf
 
+import six
 from django.db import connection
 from django.db.models import F
 from django.test import TestCase
@@ -68,6 +69,21 @@ class HllFieldTest(TestCase):
 
     def test_update(self):
         TestModel.objects.filter(id=100501).update(hll_field=HllInteger(1) | F('hll_field'))
+        self.assertEqual(1, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(id=100501).
+                         values_list('card', flat=True)[0])
+        
+    def test_hex_convertion(self):
+        instance = TestModel.objects.get(id=100501)
+        instance.hll_field = HllInteger(1) | F('hll_field')
+        instance.save()
+
+        instance.refresh_from_db()
+
+        self.assertIsInstance(instance.hll_field, six.string_types)
+        self.assertEqual(instance.hll_field[:2], r'\x')
+
+        instance.save()
+
         self.assertEqual(1, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(id=100501).
                          values_list('card', flat=True)[0])
 
