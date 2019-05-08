@@ -31,7 +31,9 @@ class HllFromHex(six.with_metaclass(ABCMeta, Func)):
     """
     Constructs hll that can be saved from binary data (or it's psycopg representation)
     """
-    def __init__(self, data, *args, db_type='hll', **extra):
+    def __init__(self, data, *args, **extra):
+        db_type = extra.pop('db_type', 'hll')
+
         # Psycopg2 returns Binary results as hex string, prefixed by \x but requires bytes for saving.
         if isinstance(data, six.string_types) and data.startswith(r'\x'):
             data = bytes.fromhex(data[2:])
