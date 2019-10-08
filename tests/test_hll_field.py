@@ -6,7 +6,7 @@ from django.db.models import F
 from django.test import TestCase
 
 from django_pg_hll import HllEmpty, HllInteger
-from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality
+from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, CardinalitySum
 
 # !!! Don't remove this import, or bulk_update will not see function name
 from django_pg_hll.bulk_update import HllConcatFunction
@@ -92,17 +92,18 @@ class TestAggregation(TestCase):
     def setUp(self):
         TestModel.objects.bulk_create([
             TestModel(id=100501, hll_field=HllEmpty()),
-            TestModel(id=100502, hll_field=HllInteger(1)),
+            TestModel(id=100502, hll_field=HllInteger(1) | HllInteger(2)),
             TestModel(id=100503, hll_field=HllInteger(2))
         ])
 
     def test_cardinality_transform_filter(self):
         self.assertEqual(1, TestModel.objects.filter(hll_field__cardinality=0).count())
-        self.assertEqual(2, TestModel.objects.filter(hll_field__cardinality=1).count())
-        self.assertEqual(0, TestModel.objects.filter(hll_field__cardinality=2).count())
+        self.assertEqual(1, TestModel.objects.filter(hll_field__cardinality=1).count())
+        self.assertEqual(1, TestModel.objects.filter(hll_field__cardinality=2).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__cardinality=3).count())
 
     def test_cardinality_aggregate_function(self):
-        self.assertEqual({0, 1}, set(TestModel.objects.annotate(card=Cardinality('hll_field')).
+        self.assertEqual({0, 1, 2}, set(TestModel.objects.annotate(card=Cardinality('hll_field')).
                          values_list('card', flat=True)))
 
     def test_union_aggregate_function(self):
@@ -125,6 +126,15 @@ class TestAggregation(TestCase):
             values_list('card', flat=True)[0]
 
         self.assertEqual(2, card)
+
+    def test_cardinality_sum_function(self):
+        fk_instance = FKModel.objects.create()
+        TestModel.objects.all().update(fk=fk_instance)
+
+        card = FKModel.objects.annotate(card=CardinalitySum('testmodel__hll_field')).\
+            values_list('card', flat=True)[0]
+
+        self.assertEqual(3, card)
 
 
 @skipIf(not django_pg_bulk_update_available(), 'django-pg-bulk-update library is not installed')

@@ -106,7 +106,7 @@ MyModel.objects.filter(hll__cardinality=3).count()
 ```
 
 ### Aggregate functions
-In order to count aggregations and annotations, library provides 3 aggregate functions:
+In order to count aggregations and annotations, library provides 4 aggregate functions:
 * `django_pg_hll.aggregate.Cardinality`
   Counts cardinality of hll field
 * `django_pg_hll.aggregate.UnionAgg`
@@ -114,10 +114,13 @@ In order to count aggregations and annotations, library provides 3 aggregate fun
 * `django_pg_hll.aggregate.UnionAggCardinality`
   Counts cardinality of hll, combined by UnionAgg function. In fact, it does `Cardinality(UnionAgg(hll))`.  
   P. s. django doesn't give ability to use function inside function.
+* `django_pg_hll.aggregate.CardinalitySum`
+  Counts sum of multiple rows hll cardinalities. In fact, it does `Sum(Cardinality(hll))`.  
+  P. s. django doesn't give ability to use function inside function.
 ```python
 from django.db import models
 from django_pg_hll import HllField, HllInteger
-from django_pg_hll.aggregate import Cardinality, UnionAggCardinality
+from django_pg_hll.aggregate import Cardinality, UnionAggCardinality, CardinalitySum
 
 
 class ForeignModel(models.Model):
@@ -130,16 +133,21 @@ class MyModel(models.Model):
     
 MyModel.objects.bulk_create([
    MyModel(fk=1, hll=HllInteger(1)),
-   MyModel(fk=2, hll=HllInteger(2) | HllInteger(3)),
+   MyModel(fk=2, hll=HllInteger(2) | HllInteger(3) | HllInteger(4)),
    MyModel(fk=3, hll=HllInteger(4))
 ])
 
 MyModel.objects.annotate(card=Cardinality('hll_field')).values_list('id', 'card')
-# outputs (1, 1), (2, 2), (3, 1)
+# outputs (1, 1), (2, 3), (3, 1)
 
-# Count cardinality for hll, built from 
+# Count cardinality for hll, build by union of all rows
+# 4 element exists in rows with fk=2 and fk=3. After union it gives single result 
 ForeignModel.objects.annotate(card=UnionAggCardinality('testmodel__hll_field')).values_list('card', flat=True)
 # outputs [4]
+
+# Count sum of cardinalities for each row
+ForeignModel.objects.annotate(card=CardinalitySum('testmodel__hll_field')).values_list('card', flat=True)
+# outputs [5]
 ```
  
 ### [django-pg-bulk-update](https://github.com/M1hacka/django-pg-bulk-update) integration
