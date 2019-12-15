@@ -2,7 +2,7 @@
 Provides a django wrapper for [postgresql-hll library by CitusData](https://github.com/citusdata/postgresql-hll#the-importance-of-hashing)
 
 ## Requirements
-* Python 2.7 or Python 3.4+
+* Python 2.7 or Python 3.5+
 * django >= 1.9
 * pytz
 * six
