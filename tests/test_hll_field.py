@@ -12,7 +12,7 @@ from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, 
 from django_pg_hll.bulk_update import HllConcatFunction
 
 from django_pg_hll.compatibility import django_pg_bulk_update_available
-from tests.models import TestModel, FKModel
+from tests.models import TestConfiguredModel, TestModel, FKModel
 
 
 class HllFieldTest(TestCase):
@@ -39,6 +39,14 @@ class HllFieldTest(TestCase):
 
     def test_create(self):
         TestModel.objects.create(hll_field=HllEmpty())
+
+    def test_create_custom_params(self):
+        with connection.cursor() as cursor:
+            cursor.execute('select hll_set_defaults(13,2,1,0);')
+            try:
+                TestConfiguredModel.objects.create(hll_field=HllEmpty())
+            finally:
+                cursor.execute('select hll_set_defaults(11,5,-1,1);')
 
     def test_migration(self):
         query = "SELECT hll_cardinality(hll_field) FROM tests_testmodel;"

@@ -27,10 +27,10 @@ class HllField(BinaryField):
     }
 
     def __init__(self, *args, **kwargs):
-        self._log2m = kwargs.get('log2m', self.custom_params['log2m'])
-        self._regwidth = kwargs.get('regwidth', self.custom_params['regwidth'])
-        self._expthresh = kwargs.get('expthresh', self.custom_params['expthresh'])
-        self._sparseon = kwargs.get('sparseon', self.custom_params['sparseon'])
+        self._log2m = kwargs.pop('log2m', self.custom_params['log2m'])
+        self._regwidth = kwargs.pop('regwidth', self.custom_params['regwidth'])
+        self._expthresh = kwargs.pop('expthresh', self.custom_params['expthresh'])
+        self._sparseon = kwargs.pop('sparseon', self.custom_params['sparseon'])
 
         super(HllField, self).__init__(*args, **kwargs)
 
@@ -40,7 +40,7 @@ class HllField(BinaryField):
         # Only include kwarg if it's not the default
         for param_name, default in self.custom_params.items():
             if getattr(self, '_%s' % param_name) != default:
-                kwargs[name] = getattr(self, '_%s' % param_name)
+                kwargs[param_name] = getattr(self, '_%s' % param_name)
 
         return name, path, args, kwargs
 
