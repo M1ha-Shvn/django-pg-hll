@@ -28,5 +28,15 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             }
+        ),
+        migrations.CreateModel(
+            name='TestConfiguredModel',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('hll_field', HllField(log2m=13, regwidth=2, expthresh=1, sparseon=0)),
+            ],
+            options={
+                'abstract': False,
+            }
         )
     ]
