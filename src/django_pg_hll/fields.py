@@ -36,7 +36,7 @@ class HllField(BinaryField):
             else:
                 all_args_found = False
 
-        super().__init__(*args, **kwargs)
+        super(HllField, self).__init__(*args, **kwargs)
 
     def deconstruct(self):
         name, path, args, kwargs = super(HllField, self).deconstruct()
@@ -87,7 +87,8 @@ class ArrayFromTupleField(ArrayField):
 
         return value
 
-    def from_db_value(self, value, expression, connection):
+    def from_db_value(self, value, expression, connection, query_context=None):
+        # query_context has been used in django < 2.0
         if value is None:
             return value
 

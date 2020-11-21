@@ -160,7 +160,7 @@ class TestAggregation(TestCase):
 
 
 class TestConfigurationAggregation(TestCase):
-    def setUp(self) -> None:
+    def setUp(self):
         self.default = TestModel.objects.create(id=100501, hll_field=HllEmpty())
         self.non_default = TestConfiguredModel.objects.create(id=100502, hll_field=HllEmpty(13, 2, 1, 0))
 
