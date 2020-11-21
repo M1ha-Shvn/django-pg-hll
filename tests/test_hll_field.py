@@ -109,6 +109,12 @@ class HllFieldTest(TestCase):
                                                   ' arguments are set'):
             HllField(log2m=1, sparseon=2)
 
+    def test_hll_eq(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field=HllInteger(1)).count())
+
+    def test_hll_ne(self):
+        self.assertEqual(2, TestModel.objects.exclude(hll_field=HllInteger(1)).count())
+
 
 class TestAggregation(TestCase):
     def setUp(self):

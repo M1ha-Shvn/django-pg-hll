@@ -106,6 +106,10 @@ You can pass `hash_seed` optional argument to any HllValue, expecting data.
 ### Filtering QuerySet
 HllField realizes several lookups (returning float value) in order to make filtering easier:
 ```python
+# Equality
+MyModel.objects.filter(hll=HllInteger(1)).count()
+MyModel.objects.exclude(hll=HllInteger(2)).count()
+
 # Cardinality
 MyModel.objects.filter(hll__cardinality=3).count()
 
