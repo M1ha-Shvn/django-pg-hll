@@ -6,6 +6,8 @@ import six
 from abc import abstractmethod, ABCMeta
 from django.db.models.expressions import CombinedExpression, F, Func, Value
 
+from django_pg_hll.utils import HllArgsMixin
+
 
 class HllJoinMixin:
     CONCAT = '||'
@@ -53,9 +55,6 @@ class HllValue(six.with_metaclass(ABCMeta, HllJoinMixin, Func)):
 
 class HllEmpty(HllValue):
     function = 'hll_empty'
-
-    def __init__(self, **extra):
-        super(HllEmpty, self).__init__(**extra)
 
 
 class HllDataValue(HllValue):

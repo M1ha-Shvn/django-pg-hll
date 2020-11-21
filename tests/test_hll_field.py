@@ -41,14 +41,7 @@ class HllFieldTest(TestCase):
         TestModel.objects.create(hll_field=HllEmpty())
 
     def test_create_custom_params(self):
-        # HACK This test is hacky as HllEmpty parameters are not implemented and should be fixed.
-        #  See https://github.com/M1ha-Shvn/django-pg-hll/issues/8
-        with connection.cursor() as cursor:
-            cursor.execute('select hll_set_defaults(13, 2, 1, 0);')
-            try:
-                TestConfiguredModel.objects.create(hll_field=HllEmpty())
-            finally:
-                cursor.execute('select hll_set_defaults(11, 5, -1, 1);')
+        TestConfiguredModel.objects.create(hll_field=HllEmpty(13, 2, 1, 0))
 
     def test_migration(self):
         query = "SELECT hll_cardinality(hll_field) FROM tests_testmodel;"

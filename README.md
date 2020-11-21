@@ -42,6 +42,10 @@ from django_pg_hll import HllField
 # Empty hll
 HllEmpty()
 
+# Empty hll with custom configuration parameters
+# hll_empty([log2m[, regwidth[, expthresh[, sparseon]]]])
+HllEmpty(13, 2, 1, 0)
+
 # Hash from boolean
 HllBoolean(True)
 

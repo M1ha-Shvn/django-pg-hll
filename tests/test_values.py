@@ -19,6 +19,18 @@ class HllEmptyTest(ValueTest):
         self.assertEqual('hll_empty()', sql)
         self.assertListEqual([], params)
 
+    def test_sql_with_args(self):
+        val = HllEmpty(1, 2, 3, 4)
+        sql, params = val.as_sql(self.compiler, connection)
+        self.assertEqual('hll_empty(%s, %s, %s, %s)', sql)
+        self.assertListEqual([1, 2, 3, 4], params)
+
+    def test_sql_with_partial_args(self):
+        val = HllEmpty(1, 2)
+        sql, params = val.as_sql(self.compiler, connection)
+        self.assertEqual('hll_empty(%s, %s)', sql)
+        self.assertListEqual([1, 2], params)
+
 
 class HllSmallIntTest(ValueTest):
     def test_sql(self):
