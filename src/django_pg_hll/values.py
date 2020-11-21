@@ -6,8 +6,6 @@ import six
 from abc import abstractmethod, ABCMeta
 from django.db.models.expressions import CombinedExpression, F, Func, Value
 
-from django_pg_hll.utils import HllArgsMixin
-
 
 class HllJoinMixin:
     CONCAT = '||'
