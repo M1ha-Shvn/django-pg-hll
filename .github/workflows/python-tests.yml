@@ -31,38 +31,16 @@ jobs:
         - django-version: 3.1
           postgres-version: 9.4
 
-#    services:
-#      postgres:
-#        # Docker Hub image
-#        image: postgres:${{ matrix.postgres-version }}
-#        # Provide the password for postgres
-#        env:
-#          POSTGRES_PASSWORD: postgres
-#        # Set health checks to wait until postgres has started
-#        options: >-
-#          --health-cmd pg_isready
-#          --health-interval 10s
-#          --health-timeout 5s
-#          --health-retries 5
-#        ports:
-#          # Maps tcp port 5432 on service container to the host
-#          - 5432:5432
-#        volumes:
-#          - /home/runner/work/django-pg-hll/django-pg-hll/.github/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d/
-
     steps:
+    - uses: actions/checkout@v2
+
     # Install postgres with hll extension. Container is better, but can't be installed with hll
     - name: Install PostgreSQL
-      run: sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
+      run: |
+        sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
+        sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
+        sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
 
-    - name: Configure PostgreSQL
-      run: sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
-
-    - name: Restart PostgreSQL
-      run: sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
-
-    - uses: actions/checkout@v2
-    
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -94,17 +72,16 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-#    - name: Wait for PostgreSQL is ready
-#      run: pg_isready -t 30s -p 5432
-
     - name: Set up test databases
       run: |
-        psql -tc 'SHOW server_version' -U postgres -h localhost
-        psql -c 'CREATE ROLE test;' -U postgres -h localhost
-        psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres -h localhost
-        psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres -h localhost
-        psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres -h localhost
-        psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
+        sudo -u postgres psql -tc 'SHOW server_version' -U postgres -h localhost
+        sudo -u postgres psql -c 'CREATE ROLE test;' -U postgres -h localhost
+        sudo -u postgres psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres -h localhost
+        sudo -u postgres psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres -h localhost
+        sudo -u postgres psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres -h localhost
+        sudo -u postgres psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
+      env:
+        PGPASSWORD: postgres
 
     - name: Test with unittest
       run: |
