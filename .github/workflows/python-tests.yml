@@ -95,7 +95,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Wait for PostgreSQL is ready
-      run: pg_isready -t 30s -U postgres -h localhost
+      run: pg_isready -t 30s -p 5432
 
     - name: Set up test databases
       run: |
