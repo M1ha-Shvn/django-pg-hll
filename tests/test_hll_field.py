@@ -8,9 +8,6 @@ from django.test import TestCase
 from django_pg_hll import HllEmpty, HllInteger
 from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, CardinalitySum
 
-# !!! Don't remove this import, or bulk_update will not see function name
-from django_pg_hll.bulk_update import HllConcatFunction
-
 from django_pg_hll.compatibility import django_pg_bulk_update_available
 from tests.models import TestConfiguredModel, TestModel, FKModel
 
@@ -81,7 +78,7 @@ class HllFieldTest(TestCase):
         TestModel.objects.filter(id=100501).update(hll_field=HllInteger(1) | F('hll_field'))
         self.assertEqual(1, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(id=100501).
                          values_list('card', flat=True)[0])
-        
+
     def test_hex_convertion(self):
         instance = TestModel.objects.get(id=100501)
         instance.hll_field = HllInteger(1) | F('hll_field')

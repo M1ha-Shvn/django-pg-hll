@@ -79,5 +79,3 @@ class CardinalityTransform(Transform):
     def as_sql(self, compiler, connection, function=None, template=None):
         lhs, params = compiler.compile(self.lhs)
         return 'hll_cardinality(%s)' % lhs, params
-
-

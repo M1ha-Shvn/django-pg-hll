@@ -75,6 +75,7 @@ jobs:
         python -m pip install --upgrade pip       
         pip install -r requirements-test.txt
         pip install -U django==${{ matrix.django-version }}.*
+        python setup.py -q install
       
     - name: Lint with flake8
       run: |       
