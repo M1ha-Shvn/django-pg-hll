@@ -53,7 +53,7 @@ jobs:
         # This path is specific to Ubuntu
         path: ~/.cache/pip
         # Look to see if there is a cache hit for the corresponding requirements file
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements-test.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
           ${{ runner.os }}-
@@ -81,8 +81,6 @@ jobs:
         psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
         psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
         psql -c 'CREATE DATABASE test OWNER test;' -U postgres
-      env:
-        PGPASSWORD: postgres
 
     - name: Test with unittest
       run: |
