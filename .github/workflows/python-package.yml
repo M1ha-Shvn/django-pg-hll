@@ -59,7 +59,7 @@ jobs:
     - name: Display PostgreSQL version
       run: psql -tc 'SHOW server_version' -U postgres -h localhost
       env:
-        - PGPASSWORD: postgres
+        PGPASSWORD: postgres
 
     - name: Set up PostgreSQL Hll plugin
       run: sudo apt-get install sudo apt-get install postgresql-${{ matrix.postgres-version }}-hll
@@ -98,7 +98,7 @@ jobs:
         psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres -h localhost
         psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
       env:
-        - PGPASSWORD: postgres
+        PGPASSWORD: postgres
     
     - name: Test with unittest
       run: |
