@@ -39,7 +39,7 @@ jobs:
       run: |
         sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
         sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
-        sudo echo 'local all postgres trust' >> /etc/postgresql/${{ matrix.postgres-version }}/main/pg_hba.conf
+        echo 'local all postgres trust' | sudo tee -a /etc/postgresql/${{ matrix.postgres-version }}/main/pg_hba.conf
         sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
 
     - name: Set up Python ${{ matrix.python-version }}
