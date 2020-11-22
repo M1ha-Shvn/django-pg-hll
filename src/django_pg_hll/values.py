@@ -54,9 +54,6 @@ class HllValue(six.with_metaclass(ABCMeta, HllJoinMixin, Func)):
 class HllEmpty(HllValue):
     function = 'hll_empty'
 
-    def __init__(self, **extra):
-        super(HllEmpty, self).__init__(**extra)
-
 
 class HllDataValue(HllValue):
     # This value is used to form real template and can be redeclared in descendants

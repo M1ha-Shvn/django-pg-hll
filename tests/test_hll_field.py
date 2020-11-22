@@ -5,10 +5,12 @@ from django.db import connection
 from django.db.models import F
 from django.test import TestCase
 
-from django_pg_hll import HllEmpty, HllInteger
-from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, CardinalitySum
-
+from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, CardinalitySum, HllSchemaVersion, \
+    HllType, HllLog2M, HllRegWidth, HllExpThreshold, HllSParseOn
 from django_pg_hll.compatibility import django_pg_bulk_update_available
+from django_pg_hll.fields import HllField
+from django_pg_hll.values import HllEmpty, HllInteger
+
 from tests.models import TestConfiguredModel, TestModel, FKModel
 
 
@@ -38,14 +40,7 @@ class HllFieldTest(TestCase):
         TestModel.objects.create(hll_field=HllEmpty())
 
     def test_create_custom_params(self):
-        # HACK This test is hacky as HllEmpty parameters are not implemented and should be fixed.
-        #  See https://github.com/M1ha-Shvn/django-pg-hll/issues/8
-        with connection.cursor() as cursor:
-            cursor.execute('select hll_set_defaults(13, 2, 1, 0);')
-            try:
-                TestConfiguredModel.objects.create(hll_field=HllEmpty())
-            finally:
-                cursor.execute('select hll_set_defaults(11, 5, -1, 1);')
+        TestConfiguredModel.objects.create(hll_field=HllEmpty(13, 2, 1, 0))
 
     def test_migration(self):
         query = "SELECT hll_cardinality(hll_field) FROM tests_testmodel;"
@@ -93,6 +88,32 @@ class HllFieldTest(TestCase):
 
         self.assertEqual(1, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(id=100501).
                          values_list('card', flat=True)[0])
+
+    def test_config_args(self):
+        f = HllField(log2m=1, regwidth=2, expthresh=3, sparseon=4)
+        self.assertEqual(f.db_type(connection), 'hll(1, 2, 3, 4)')
+
+    def test_partial_config_args(self):
+        f = HllField(log2m=1, regwidth=2)
+        self.assertEqual(f.db_type(connection), 'hll(1, 2)')
+
+    def test_no_config_args(self):
+        f = HllField()
+        self.assertEqual(f.db_type(connection), 'hll')
+
+    def test_config_args_wrong_order(self):
+        with self.assertRaisesMessage(ValueError, '`regwidth` argument can be set only if [log2m] arguments are set'):
+            HllField(regwidth=1)
+
+        with self.assertRaisesMessage(ValueError, '`sparseon` argument can be set only if [log2m, regwidth, expthresh]'
+                                                  ' arguments are set'):
+            HllField(log2m=1, sparseon=2)
+
+    def test_hll_eq(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field=HllInteger(1)).count())
+
+    def test_hll_ne(self):
+        self.assertEqual(2, TestModel.objects.exclude(hll_field=HllInteger(1)).count())
 
 
 class TestAggregation(TestCase):
@@ -142,6 +163,64 @@ class TestAggregation(TestCase):
             values_list('card', flat=True)[0]
 
         self.assertEqual(3, card)
+
+
+class TestConfigurationAggregation(TestCase):
+    def setUp(self):
+        self.default = TestModel.objects.create(id=100501, hll_field=HllEmpty())
+        self.non_default = TestConfiguredModel.objects.create(id=100502, hll_field=HllEmpty(13, 2, 1, 0))
+
+    def test_hll_schema_version(self):
+        self.assertEqual(1, TestModel.objects.annotate(ver=HllSchemaVersion('hll_field')).get(id=self.default.id).ver)
+
+    def test_hll_type(self):
+        self.assertEqual(1, TestModel.objects.annotate(type=HllType('hll_field')).get(id=self.default.id).type)
+
+    def test_log2m(self):
+        self.assertEqual(11, TestModel.objects.annotate(log2m=HllLog2M('hll_field')).get(id=self.default.id).log2m)
+        self.assertEqual(13, TestConfiguredModel.objects.annotate(log2m=HllLog2M('hll_field')).
+                         get(id=self.non_default.id).log2m)
+
+    def test_regwidth(self):
+        self.assertEqual(5, TestModel.objects.annotate(regwidth=HllRegWidth('hll_field')).
+                         get(id=self.default.id).regwidth)
+        self.assertEqual(2, TestConfiguredModel.objects.annotate(regwidth=HllRegWidth('hll_field')).
+                         get(id=self.non_default.id).regwidth)
+
+    def test_expthresh(self):
+        self.assertListEqual([-1, 160], TestModel.objects.annotate(expthresh=HllExpThreshold('hll_field')).
+                             get(id=self.default.id).expthresh)
+        self.assertListEqual([1, 1], TestConfiguredModel.objects.annotate(expthresh=HllExpThreshold('hll_field')).
+                             get(id=self.non_default.id).expthresh)
+
+    def test_sparseon(self):
+        self.assertEqual(1, TestModel.objects.annotate(sparseon=HllSParseOn('hll_field')).
+                         get(id=self.default.id).sparseon)
+        self.assertEqual(0, TestConfiguredModel.objects.annotate(sparseon=HllSParseOn('hll_field')).
+                         get(id=self.non_default.id).sparseon)
+
+    def test_schema_version_transform_filter(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field__schema_version=1).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__schema_version=2).count())
+
+    def test_type_transform_filter(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field__type=1).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__type=2).count())
+
+    def test_log2m_transform_filter(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field__log2m=11).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__log2m=13).count())
+        self.assertEqual(1, TestConfiguredModel.objects.filter(hll_field__log2m=13).count())
+
+    def test_regwidth_transform_filter(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field__regwidth=5).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__regwidth=2).count())
+        self.assertEqual(1, TestConfiguredModel.objects.filter(hll_field__regwidth=2).count())
+
+    def test_sparseon_transform_filter(self):
+        self.assertEqual(1, TestModel.objects.filter(hll_field__sparseon=1).count())
+        self.assertEqual(0, TestModel.objects.filter(hll_field__sparseon=0).count())
+        self.assertEqual(1, TestConfiguredModel.objects.filter(hll_field__sparseon=0).count())
 
 
 @skipIf(not django_pg_bulk_update_available(), 'django-pg-bulk-update library is not installed')

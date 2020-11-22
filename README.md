@@ -42,6 +42,10 @@ from django_pg_hll import HllField
 # Empty hll
 HllEmpty()
 
+# Empty hll with custom configuration parameters
+# hll_empty([log2m[, regwidth[, expthresh[, sparseon]]]])
+HllEmpty(13, 2, 1, 0)
+
 # Hash from boolean
 HllBoolean(True)
 
@@ -100,13 +104,25 @@ You can pass `hash_seed` optional argument to any HllValue, expecting data.
 
 
 ### Filtering QuerySet
-HllField realizes `cardinality` lookup (returning integer value) in order to make filtering easier:
+HllField realizes several lookups (returning float value) in order to make filtering easier:
 ```python
+# Equality
+MyModel.objects.filter(hll=HllInteger(1)).count()
+MyModel.objects.exclude(hll=HllInteger(2)).count()
+
+# Cardinality
 MyModel.objects.filter(hll__cardinality=3).count()
+
+# Configuration lookups
+MyModel.objects.filter(hll__schema_version=1).count()
+MyModel.objects.filter(hll__type=1).count()
+MyModel.objects.filter(hll__log2m=11).count()
+MyModel.objects.filter(hll__regwidth=2).count()
+MyModel.objects.filter(hll__sparseon=1).count()
 ```
 
 ### Aggregate functions
-In order to count aggregations and annotations, library provides 4 aggregate functions:
+In order to count aggregations and annotations, library provides aggregate functions:
 * `django_pg_hll.aggregate.Cardinality`
   Counts cardinality of hll field
 * `django_pg_hll.aggregate.UnionAgg`
@@ -119,8 +135,9 @@ In order to count aggregations and annotations, library provides 4 aggregate fun
   P. s. django doesn't give ability to use function inside function.
 ```python
 from django.db import models
-from django_pg_hll import HllField, HllInteger
 from django_pg_hll.aggregate import Cardinality, UnionAggCardinality, CardinalitySum
+from django_pg_hll.fields import HllField
+from django_pg_hll.values import HllInteger
 
 
 class ForeignModel(models.Model):
@@ -149,14 +166,57 @@ ForeignModel.objects.annotate(card=UnionAggCardinality('testmodel__hll_field')).
 ForeignModel.objects.annotate(card=CardinalitySum('testmodel__hll_field')).values_list('card', flat=True)
 # outputs [5]
 ```
+
+
+### Configuration aggregate functions
+In order to get hll field creation parameters, library provides aggregate functions:
+* `django_pg_hll.aggregate.HllSchemaVersion`
+  Returns the schema version value (integer) of the hll  
+  
+* `django_pg_hll.aggregate.HllType`
+  Returns the schema version-specific type value (integer) of the hll. 
+  See the [storage specification (v1.0.0)](https://github.com/aggregateknowledge/hll-storage-spec/blob/v1.0.0/STORAGE.md) 
+   for more details.
+   
+* `django_pg_hll.aggregate.HllRegWidth`
+  Returns the register bit-width (integer) of the hll  
+  
+* `django_pg_hll.aggregate.HllLog2M`
+  Returns the log-base-2 of the number of registers of the hll. 
+  If the hll is not of type FULL or SPARSE it returns the log2m value which would be used if the hll were promoted.
+  
+* `django_pg_hll.aggregate.HllExpThreshold`
+  Returns an array with 2 elements of the specified and effective EXPLICIT promotion cutoffs for the hll.
+  The specified cutoff and the effective cutoff will be the same unless expthresh has been set to 'auto' (-1).
+  In that case the specified value will be -1 and the effective value will be the implementation-dependent number 
+   of explicit values that will be stored before an EXPLICIT hll is promoted.
+  
+* `django_pg_hll.aggregate.HllSParseOn`
+  Returns 1 if the SPARSE representation is enabled for the hll, and 0 otherwise  
+ 
+```python
+from django.db import models
+from django_pg_hll.aggregate import HllLog2M
+from django_pg_hll.fields import HllField
+from django_pg_hll.values import HllEmpty, HllInteger
+
+
+class MyModel(models.Model):
+    default_hll = HllField()
+    configured_hll = HllField(log2m=13, regwidth=2, expthresh=1, sparseon=0)
+    
+MyModel.objects.create(fk=1, hll=HllInteger(1), configured_hll=HllEmpty(13, 2, 1, 0))
+
+MyModel.objects.annotate(log2m=HllLog2M('default_hll'), log2m_conf=HllLog2M('configured_hll')). \
+    values_list('log2m', 'log2m_conf')
+# outputs (11, 13)
+```
+
  
 ### [django-pg-bulk-update](https://github.com/M1hacka/django-pg-bulk-update) integration
 This library provides a `hll_concat` set function,
 allowing to use hll in `bulk_update` and `bulk_update_or_create` queries.
 ```python
-# !!! Don't forget to import function, or django_pg_bulk_update will not find it
-from django_pg_hll.bulk_update import HllConcatFunction
-
 MyModel.objects.bulk_update_or_create([
     {'id': 100501, 'hll_field': HllInteger(1)},
     {'id': 100502, 'hll_field': HllInteger(2) | HllInteger(3)}

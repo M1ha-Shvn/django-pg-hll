@@ -1,10 +1,10 @@
 """
 This file contains a field to use in django models
 """
-from django.db.models import BinaryField, IntegerField
-from django.db.models.lookups import Transform
-
+import re
 import six
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import BinaryField
 
 from .values import HllEmpty, HllFromHex
 
@@ -15,37 +15,38 @@ class HllField(BinaryField):
     """
     A field, wrapping hll
     """
+    HLL_ARGS = ('log2m', 'regwidth', 'expthresh', 'sparseon')
+
     description = "Postgres HyperLogLog"
     empty_values = [None, b'', HllEmpty()]
 
-    # Default values were taken from https://github.com/citusdata/postgresql-hll#defaults
-    custom_params = {
-        'log2m': 11,
-        'regwidth': 5,
-        'expthresh': -1,
-        'sparseon': 1
-    }
-
     def __init__(self, *args, **kwargs):
-        self._log2m = kwargs.pop('log2m', self.custom_params['log2m'])
-        self._regwidth = kwargs.pop('regwidth', self.custom_params['regwidth'])
-        self._expthresh = kwargs.pop('expthresh', self.custom_params['expthresh'])
-        self._sparseon = kwargs.pop('sparseon', self.custom_params['sparseon'])
+        self.hll_arg_params = []
+        all_args_found = True
+
+        # Check that argument order has all arguments required for field creation
+        for i, arg in enumerate(self.HLL_ARGS):
+            if arg in kwargs:
+                if not all_args_found:
+                    raise ValueError('`%s` argument can be set only if [%s] arguments are set'
+                                     % (arg, ', '.join(self.HLL_ARGS[:i])))
+                else:
+                    self.hll_arg_params.append(kwargs.pop(arg))
+            else:
+                all_args_found = False
 
         super(HllField, self).__init__(*args, **kwargs)
 
     def deconstruct(self):
         name, path, args, kwargs = super(HllField, self).deconstruct()
 
-        # Only include kwarg if it's not the default
-        for param_name, default in self.custom_params.items():
-            if getattr(self, '_%s' % param_name) != default:
-                kwargs[param_name] = getattr(self, '_%s' % param_name)
+        for param_name, val in zip(self.HLL_ARGS, self.hll_arg_params):
+            kwargs[param_name] = val
 
         return name, path, args, kwargs
 
     def db_type(self, connection):
-        return 'hll(%d, %d, %d, %d)' % (self._log2m, self._regwidth, self._expthresh, self._sparseon)
+        return ('hll(%s)' % ", ".join(str(val) for val in self.hll_arg_params)) if self.hll_arg_params else 'hll'
 
     def rel_db_type(self, connection):
         return 'hll'
@@ -71,11 +72,27 @@ class HllField(BinaryField):
         return default
 
 
-@HllField.register_lookup
-class CardinalityTransform(Transform):
-    lookup_name = 'cardinality'
-    output_field = IntegerField()
+class ArrayFromTupleField(ArrayField):
+    """
+    This field is used to return HllExpThresh result
+    """
+    def to_python(self, value):
+        if isinstance(value, str):
+            if not re.match(r'(.*)', value):
+                raise ValueError('Tuple should be surrounded by braces')
 
-    def as_sql(self, compiler, connection, function=None, template=None):
-        lhs, params = compiler.compile(self.lhs)
-        return 'hll_cardinality(%s)' % lhs, params
+            tuple_items = value[1:-1].split(',')
+            value = [self.base_field.to_python(val) for val in tuple_items]
+
+        return value
+
+    def from_db_value(self, value, expression, connection, query_context=None):
+        # query_context has been used in django < 2.0
+        if value is None:
+            return value
+
+        if isinstance(value, str):
+            value = self.to_python(value)
+
+        return [self.base_field.from_db_value(item, expression, connection) for item in value] \
+            if hasattr(self.base_field, 'from_db_value') else value
