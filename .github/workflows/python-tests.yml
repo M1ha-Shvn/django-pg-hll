@@ -53,7 +53,9 @@ jobs:
     steps:
     # Install postgres with hll extension. Container is better, but can't be installed with hll
     - name: Install PostgreSQL
-      run: sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
+      run: |
+        sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
+        export PGPORT=`cat /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf | grep "port = " | sed -E 's/^port = ([0-9]+).*$/\1/g'`
 
     - uses: actions/checkout@v2
     
