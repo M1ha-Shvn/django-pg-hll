@@ -56,9 +56,10 @@ jobs:
       run: sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
 
     - name: Configure PostgreSQL
-      run: |
-        sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
-        sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
+      run: sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
+
+    - name: Restart PostgreSQL
+      run: sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
 
     - uses: actions/checkout@v2
     
