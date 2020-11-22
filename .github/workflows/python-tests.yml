@@ -31,30 +31,29 @@ jobs:
         - django-version: 3.1
           postgres-version: 9.4
 
-    services:
-      postgres:
-        # Docker Hub image
-        image: postgres:${{ matrix.postgres-version }}
-        # Provide the password for postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
-        volumes:
-          - /home/runner/work/django-pg-hll/django-pg-hll/.github/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+#    services:
+#      postgres:
+#        # Docker Hub image
+#        image: postgres:${{ matrix.postgres-version }}
+#        # Provide the password for postgres
+#        env:
+#          POSTGRES_PASSWORD: postgres
+#        # Set health checks to wait until postgres has started
+#        options: >-
+#          --health-cmd pg_isready
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        ports:
+#          # Maps tcp port 5432 on service container to the host
+#          - 5432:5432
+#        volumes:
+#          - /home/runner/work/django-pg-hll/django-pg-hll/.github/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d/
 
     steps:
-    - name: Check pg hll extension
-      run: psql -c 'CREATE EXTENSION IF NOT EXISTS hll;' -U postgres -h localhost
-      env:
-        PGPASSWORD: postgres
+    # Install postgres with hll extension. Container is better, but can't be installed with hll
+    - name: Install PostgreSQL
+      run: sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
 
     - uses: actions/checkout@v2
     
@@ -62,9 +61,6 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Create postgres extension directory
-      run: mkdir -p /docker-entrypoint-initdb.d
 
     - name: Cache pip
       uses: actions/cache@v2
