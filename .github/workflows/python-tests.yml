@@ -10,7 +10,20 @@ on:
     branches: [ master ]
 
 jobs:
+  prepare_hll_script:
+    steps:
+    - name: Create docer-initdb directory
+      run: sudo mkdir -p /docker-entrypoint-initdb.d
+
+    - name: Create hll install script
+      run: |
+        cat << EOF > > /docker-entrypoint-initdb.d/install-pg-hll.sh
+        #!/bin/bash
+        sudo apt-get install postgresql-${{ matrix.postgres-version }}-hll
+        EOF
+
   build:
+    needs: prepare_hll_script
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -56,9 +69,9 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Set up PostgreSQL Hll plugin
-      run: sudo apt-get install postgresql-${{ matrix.postgres-version }}-hll
-             
+    - name: Create postgres extension directory
+      run: mkdir -p /docker-entrypoint-initdb.d
+
     - name: Cache pip
       uses: actions/cache@v2
       with:
@@ -80,7 +93,7 @@ jobs:
     - name: Lint with flake8
       run: |       
         # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --extend-exclude=build/
         
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
