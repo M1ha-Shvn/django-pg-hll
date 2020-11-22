@@ -10,18 +10,6 @@ on:
     branches: [ master ]
 
 jobs:
-  prepare_hll_script:
-    steps:
-    - name: Create docer-initdb directory
-      run: sudo mkdir -p /docker-entrypoint-initdb.d
-
-    - name: Create hll install script
-      run: |
-        cat << EOF > > /docker-entrypoint-initdb.d/install-pg-hll.sh
-        #!/bin/bash
-        sudo apt-get install postgresql-${{ matrix.postgres-version }}-hll
-        EOF
-
   build:
     needs: prepare_hll_script
     runs-on: ubuntu-latest
@@ -60,6 +48,8 @@ jobs:
         ports:
           # Maps tcp port 5432 on service container to the host
           - 5432:5432
+        volumes:
+          - /home/runner/work/django-pg-hll/django-pg-hll/.github/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 
     steps:
     - uses: actions/checkout@v2
