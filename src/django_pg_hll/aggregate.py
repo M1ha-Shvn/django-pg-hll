@@ -1,6 +1,6 @@
 from django.db.models import Aggregate, IntegerField
 
-from django_pg_hll import HllField
+from .fields import HllField
 
 
 class Cardinality(Aggregate):

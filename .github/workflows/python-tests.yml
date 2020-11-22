@@ -1,0 +1,77 @@
+name: Python unit tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
+        postgres-version: [9.5, 9.6, 10, 11, 12]
+        django-version: [2.0, 2.1, 2.2, 3.0, 3.1]
+        exclude:
+        # Django 3.0+ doesn't support python 3.5
+        - python-version: 3.5
+          django-version: 3.0
+        - python-version: 3.5
+          django-version: 3.1
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # Install postgres with hll extension. Container is better, but can't be installed with hll
+    - name: Install PostgreSQL
+      run: |
+        sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
+        sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
+        sudo sed -i -E 's/(local\s+all\s+postgres\s+)(peer)/\1trust/g' /etc/postgresql/${{ matrix.postgres-version }}/main/pg_hba.conf
+        sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        # This path is specific to Ubuntu
+        path: ~/.cache/pip
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements-test.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+      
+    - name: Install pip dependencies
+      run: |
+        python -m pip install --upgrade pip       
+        pip install -r requirements-test.txt
+        pip install -U django==${{ matrix.django-version }}.*
+        python setup.py -q install
+      
+    - name: Lint with flake8
+      run: |       
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --extend-exclude=build/
+        
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Set up test databases
+      run: |
+        psql -tc 'SHOW server_version' -U postgres
+        psql -c 'CREATE ROLE test;' -U postgres
+        psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
+        psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
+        psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
+        psql -c 'CREATE DATABASE test OWNER test;' -U postgres
+
+    - name: Test with unittest
+      run: |
+        python runtests.py

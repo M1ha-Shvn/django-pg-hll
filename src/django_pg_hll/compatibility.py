@@ -6,7 +6,7 @@ def django_pg_bulk_update_available():  # type: () -> bool
     :return: Boolean
     """
     try:
-        import django_pg_bulk_update
+        import django_pg_bulk_update  # noqa: F401
         return True
     except ImportError:
         return False
