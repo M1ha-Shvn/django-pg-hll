@@ -39,6 +39,7 @@ jobs:
       run: |
         sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
         sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
+        sudo echo 'local all postgres trust' >> /etc/postgresql/${{ matrix.postgres-version }}/main/pg_hba.conf
         sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
 
     - name: Set up Python ${{ matrix.python-version }}
@@ -74,12 +75,12 @@ jobs:
 
     - name: Set up test databases
       run: |
-        sudo -u postgres psql -tc 'SHOW server_version' -U postgres -h localhost
-        sudo -u postgres psql -c 'CREATE ROLE test;' -U postgres -h localhost
-        sudo -u postgres psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres -h localhost
-        sudo -u postgres psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres -h localhost
-        sudo -u postgres psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres -h localhost
-        sudo -u postgres psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
+        psql -tc 'SHOW server_version'
+        psql -c 'CREATE ROLE test;'
+        psql -c 'ALTER ROLE test WITH SUPERUSER;'
+        psql -c 'ALTER ROLE test WITH LOGIN;'
+        psql -c "ALTER ROLE test PASSWORD 'test';"
+        psql -c 'CREATE DATABASE test OWNER test;'
       env:
         PGPASSWORD: postgres
 
