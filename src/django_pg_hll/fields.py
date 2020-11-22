@@ -4,7 +4,7 @@ This file contains a field to use in django models
 import re
 import six
 from django.contrib.postgres.fields import ArrayField
-from django.db.models import BinaryField, IntegerField
+from django.db.models import BinaryField
 
 from .values import HllEmpty, HllFromHex
 
