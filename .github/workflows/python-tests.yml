@@ -75,12 +75,12 @@ jobs:
 
     - name: Set up test databases
       run: |
-        psql -tc 'SHOW server_version'
-        psql -c 'CREATE ROLE test;'
-        psql -c 'ALTER ROLE test WITH SUPERUSER;'
-        psql -c 'ALTER ROLE test WITH LOGIN;'
-        psql -c "ALTER ROLE test PASSWORD 'test';"
-        psql -c 'CREATE DATABASE test OWNER test;'
+        psql -tc 'SHOW server_version' -U postgres
+        psql -c 'CREATE ROLE test;' -U postgres
+        psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
+        psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
+        psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
+        psql -c 'CREATE DATABASE test OWNER test;' -U postgres
       env:
         PGPASSWORD: postgres
 
