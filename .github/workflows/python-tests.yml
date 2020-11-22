@@ -53,6 +53,8 @@ jobs:
     steps:
     - name: Check pg hll extension
       run: psql -c 'CREATE EXTENSION IF NOT EXISTS hll;' -U postgres -h localhost
+      env:
+        PGPASSWORD: postgres
 
     - uses: actions/checkout@v2
     
