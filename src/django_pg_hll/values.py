@@ -224,4 +224,3 @@ class HllSet(HllValue):
             params.extend(item_params)
 
         return sql, params
-

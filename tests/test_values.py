@@ -3,7 +3,7 @@ from unittest import TestCase
 from django.db import connection
 from django.db.models.sql import Query
 
-from django_pg_hll.values import *
+from django_pg_hll import HllEmpty, HllSmallInt, HllInteger, HllBigint, HllBoolean, HllByteA, HllText, HllAny, HllSet
 from tests.models import TestModel
 
 

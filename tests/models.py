@@ -14,4 +14,3 @@ class TestModel(models.Model):
 
 class TestConfiguredModel(models.Model):
     hll_field = HllField(log2m=13, regwidth=2, expthresh=1, sparseon=0)
-

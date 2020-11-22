@@ -5,7 +5,6 @@ import re
 import six
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import BinaryField, IntegerField
-from django.db.models.lookups import Transform
 
 from .values import HllEmpty, HllFromHex
 
@@ -97,6 +96,3 @@ class ArrayFromTupleField(ArrayField):
 
         return [self.base_field.from_db_value(item, expression, connection) for item in value] \
             if hasattr(self.base_field, 'from_db_value') else value
-
-
-

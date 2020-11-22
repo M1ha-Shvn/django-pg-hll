@@ -16,7 +16,6 @@ else:
     class ConcatSetFunction:
         pass
 
-
     def get_field_db_type(field, conn):
         raise NotImplementedError
 

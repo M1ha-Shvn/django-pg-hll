@@ -1,0 +1,11 @@
+Django (>=1.7)
+pytz
+six
+typing
+psycopg2
+
+# Not required, but should be tested
+django-pg-bulk-update
+
+# Linter
+flake8

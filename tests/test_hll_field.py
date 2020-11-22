@@ -73,7 +73,7 @@ class HllFieldTest(TestCase):
         TestModel.objects.filter(id=100501).update(hll_field=HllInteger(1) | F('hll_field'))
         self.assertEqual(1, TestModel.objects.annotate(card=Cardinality('hll_field')).filter(id=100501).
                          values_list('card', flat=True)[0])
-        
+
     def test_hex_convertion(self):
         instance = TestModel.objects.get(id=100501)
         instance.hll_field = HllInteger(1) | F('hll_field')
