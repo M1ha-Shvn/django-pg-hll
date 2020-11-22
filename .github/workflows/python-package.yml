@@ -1,0 +1,90 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python unit tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # TODO add more versions after build is successfull
+        python-version: [3.9]
+        postgres-version: [12]
+        django-version: [3.1]
+        exclude:
+        # Django 3.0+ doesn't support python 3.5
+        - python-version: 3.5
+          django-version: 3.0
+        - python-version: 3.5
+          django-version: 3.1
+          
+        # Django 3.0+ doesn't support Postgresql 9.4
+        - django-version: 3.0
+          postgres-version: 9.4
+        - django-version: 3.1
+          postgres-version: 9.4
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Set up PostgreSQL
+      uses: harmon758/postgresql-action@v1
+      with:
+        postgresql version: ${{ matrix.postgres-version }}
+        
+    - name: Display PostgreSQL version
+      run: psql -tc 'SHOW server_version' -U postgres
+        
+    - name: Set up PostgreSQL Hll plugin
+      run: sudo apt-get install sudo apt-get install postgresql-${{ matrix.postgres-version }}-hll
+             
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        # This path is specific to Ubuntu
+        path: ~/.cache/pip
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+      
+    - name: Install pip dependencies
+      run: |
+        python -m pip install --upgrade pip       
+        pip install -r requirements-test.txt
+        pip install -U django==${{ matrix.django-version }}.*
+      
+    - name: Lint with flake8
+      run: |       
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: Set up test databases
+      run: |
+        psql -tc 'SHOW server_version' -U postgres
+        psql -c 'CREATE ROLE test;' -U postgres
+        psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
+        psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
+        psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
+        psql -c 'CREATE DATABASE test OWNER test;' -U postgres
+    
+    - name: Test with unittest
+      run: |
+        python runtests.py
