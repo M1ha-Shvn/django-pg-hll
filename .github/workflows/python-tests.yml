@@ -48,9 +48,12 @@ jobs:
           # Maps tcp port 5432 on service container to the host
           - 5432:5432
         volumes:
-          - /home/runner/work/django-pg-hll/django-pg-hll/.github-docker/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+          - /home/runner/work/django-pg-hll/django-pg-hll/.github/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 
     steps:
+    - name: Check pg hll extension
+      run: psql -c 'CREATE EXTENSION IF NOT EXISTS hll;' -U postgres -h localhost
+
     - uses: actions/checkout@v2
     
     - name: Set up Python ${{ matrix.python-version }}
