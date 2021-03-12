@@ -1,3 +1,6 @@
+[![Python unit tests](https://github.com/M1ha-Shvn/django-pg-hll/actions/workflows/python-tests.yml/badge.svg)](https://github.com/M1ha-Shvn/django-pg-hll/actions/workflows/python-tests.yml)  [![Upload Python Package](https://github.com/M1ha-Shvn/django-pg-hll/actions/workflows/python-publish.yml/badge.svg)](https://github.com/M1ha-Shvn/django-pg-hll/actions/workflows/python-publish.yml) [![Downloads](https://pepy.tech/badge/django-pg-hll/month)](https://pepy.tech/project/django-pg-hll)
+
+
 # django-pg-hll
 Provides a django wrapper for [postgresql-hll library by CitusData](https://github.com/citusdata/postgresql-hll#the-importance-of-hashing)
 
