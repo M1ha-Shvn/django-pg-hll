@@ -4,6 +4,7 @@ from django.db import connection
 from django.db.models.sql import Query
 
 from django_pg_hll import HllEmpty, HllSmallInt, HllInteger, HllBigint, HllBoolean, HllByteA, HllText, HllAny, HllSet
+from tests.compatibility import psycopg_binary_to_bytes
 from tests.models import TestModel
 
 
@@ -149,7 +150,7 @@ class HllByteATest(ValueTest):
         val = HllByteA(b'abc')
         sql, params = val.as_sql(self.compiler, connection)
         self.assertEqual('hll_empty() || hll_hash_bytea(%s)', sql)
-        self.assertListEqual([b'abc'], params)
+        self.assertListEqual([b'abc'], [psycopg_binary_to_bytes(param) for param in params])
 
     def test_check(self):
         # Check correct values

@@ -1,6 +1,7 @@
 from django.db import models, migrations
 
 from django_pg_hll import HllField
+from django_pg_hll.migration import HllExtension
 
 
 class Migration(migrations.Migration):
@@ -8,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = []
 
     operations = [
-        migrations.RunSQL('CREATE EXTENSION hll;', reverse_sql='DROP EXTENSION hll;'),
+        HllExtension(),
         migrations.CreateModel(
             name='FkModel',
             fields=[

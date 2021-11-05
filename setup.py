@@ -13,7 +13,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='django-pg-hll',
-    version='2.0.0',
+    version='2.1.0',
     packages=['django_pg_hll'],
     package_dir={'': 'src'},
     url='https://github.com/M1hacka/django-pg-hll',
@@ -23,5 +23,5 @@ setup(
     description='Provides a django wrapper for postgresql-hll library by CitusData',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    requires=requires
+    install_requires=requires
 )

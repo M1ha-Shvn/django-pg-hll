@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
-        postgres-version: [9.5, 9.6, 10, 11, 12]
+        postgres-version: [9.5.21, 9.6.17, 10.12, 11.7, 12.2, 13.2]
         django-version: [2.0, 2.1, 2.2, 3.0, 3.1]
         exclude:
         # Django 3.0+ doesn't support python 3.5
@@ -21,16 +21,21 @@ jobs:
         - python-version: 3.5
           django-version: 3.1
 
+    services:
+      postgres:
+        image: jasei/postgres-hll:${{ matrix.postgres-version }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
     - uses: actions/checkout@v2
-
-    # Install postgres with hll extension. Container is better, but can't be installed with hll
-    - name: Install PostgreSQL
-      run: |
-        sudo apt-get install postgresql-${{ matrix.postgres-version }} postgresql-${{ matrix.postgres-version }}-hll
-        sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/${{ matrix.postgres-version }}/main/postgresql.conf
-        sudo sed -i -E 's/(local\s+all\s+postgres\s+)(peer)/\1trust/g' /etc/postgresql/${{ matrix.postgres-version }}/main/pg_hba.conf
-        sudo systemctl stop postgresql && sudo systemctl start postgresql@${{ matrix.postgres-version }}-main
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
