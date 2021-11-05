@@ -70,7 +70,8 @@ jobs:
         psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres -h localhost
         psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres -h localhost
         psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
-
+      env:
+        PGPASSWORD: postgres
     - name: Test with unittest
       run: |
         python runtests.py
