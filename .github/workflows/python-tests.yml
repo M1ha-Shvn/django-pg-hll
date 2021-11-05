@@ -72,6 +72,7 @@ jobs:
         psql -c 'CREATE DATABASE test OWNER test;' -U postgres -h localhost
       env:
         PGPASSWORD: postgres
+        
     - name: Test with unittest
       run: |
         python runtests.py
