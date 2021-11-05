@@ -1,10 +1,10 @@
-from collections import Iterable
 from copy import deepcopy
 from typing import Any
 
-import six
 from abc import abstractmethod, ABCMeta
 from django.db.models.expressions import CombinedExpression, F, Func, Value
+
+from .compatibility import string_types, Iterable
 
 
 class HllJoinMixin:
@@ -27,7 +27,7 @@ class HllCombinedExpression(HllJoinMixin, CombinedExpression):
     pass
 
 
-class HllFromHex(six.with_metaclass(ABCMeta, Func)):
+class HllFromHex(Func, metaclass=ABCMeta):
     """
     Constructs hll that can be saved from binary data (or it's psycopg representation)
     """
@@ -35,7 +35,7 @@ class HllFromHex(six.with_metaclass(ABCMeta, Func)):
         db_type = extra.pop('db_type', 'hll')
 
         # Psycopg2 returns Binary results as hex string, prefixed by \x but requires bytes for saving.
-        if isinstance(data, six.string_types) and data.startswith(r'\x'):
+        if isinstance(data, string_types) and data.startswith(r'\x'):
             data = bytearray.fromhex(data[2:])
         elif isinstance(data, bytes):
             pass
@@ -47,7 +47,7 @@ class HllFromHex(six.with_metaclass(ABCMeta, Func)):
         super(HllFromHex, self).__init__(Value(data), *args, **extra)
 
 
-class HllValue(six.with_metaclass(ABCMeta, HllJoinMixin, Func)):
+class HllValue(HllJoinMixin, Func, metaclass=ABCMeta):
     pass
 
 
@@ -93,7 +93,7 @@ class HllDataValue(HllValue):
         raise ValueError('No appropriate class found for value of type: %s' % str(type(data)))
 
 
-class HllPrimitiveValue(six.with_metaclass(ABCMeta, HllDataValue)):
+class HllPrimitiveValue(HllDataValue, metaclass=ABCMeta):
     def __init__(self, data, **extra):  # type: (Any, **dict) -> None
         """
         :param data: Data to build value from
@@ -158,7 +158,7 @@ class HllText(HllPrimitiveValue):
 
     @classmethod
     def check(cls, data):
-        return isinstance(data, six.string_types)
+        return isinstance(data, string_types)
 
 
 class HllAny(HllPrimitiveValue):

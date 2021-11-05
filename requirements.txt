@@ -1,5 +1,4 @@
 Django (>=1.7)
-pytz
-six
-typing
-psycopg2
+pytz; python_version < '3.3'
+typing; python_version < '3.5'
+psycopg2-binary

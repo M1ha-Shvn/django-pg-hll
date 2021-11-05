@@ -1,13 +1,12 @@
 from unittest import skipIf
 
-import six
 from django.db import connection
 from django.db.models import F
 from django.test import TestCase
 
 from django_pg_hll.aggregate import Cardinality, UnionAgg, UnionAggCardinality, CardinalitySum, HllSchemaVersion, \
     HllType, HllLog2M, HllRegWidth, HllExpThreshold, HllSParseOn
-from django_pg_hll.compatibility import django_pg_bulk_update_available
+from django_pg_hll.compatibility import django_pg_bulk_update_available, string_types
 from django_pg_hll.fields import HllField
 from django_pg_hll.values import HllEmpty, HllInteger
 
@@ -81,7 +80,7 @@ class HllFieldTest(TestCase):
 
         instance.refresh_from_db()
 
-        self.assertIsInstance(instance.hll_field, six.string_types)
+        self.assertIsInstance(instance.hll_field, string_types)
         self.assertEqual(instance.hll_field[:2], r'\x')
 
         instance.save()

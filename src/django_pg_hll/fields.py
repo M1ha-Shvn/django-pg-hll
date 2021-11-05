@@ -2,10 +2,10 @@
 This file contains a field to use in django models
 """
 import re
-import six
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import BinaryField
 
+from .compatibility import string_types
 from .values import HllEmpty, HllFromHex
 
 __all__ = ['HllField']
@@ -58,7 +58,7 @@ class HllField(BinaryField):
         # Psycopg2 returns Binary results as hex string, prefixed by \x
         # BinaryField requires bytes to be saved
         # But none of these can be converted to HLL by postgres directly
-        if isinstance(value, bytes) or isinstance(value, six.string_types) and value.startswith(r'\x'):
+        if isinstance(value, bytes) or isinstance(value, string_types) and value.startswith(r'\x'):
             return HllFromHex(value, db_type=self.db_type(connection))
         else:
             return super(HllField, self).get_db_prep_value(value, connection, prepared=prepared)

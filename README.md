@@ -5,13 +5,10 @@
 Provides a django wrapper for [postgresql-hll library by CitusData](https://github.com/citusdata/postgresql-hll#the-importance-of-hashing)
 
 ## Requirements
-* Python Python 3.5+  
-* django >= 1.9 (tested 2.0+)  
-* pytz
-* six
-* typing
-* psycopg2
-* PostgreSQL 9.4+ (tested 9.5+)  
+* Python 3.5+  
+* django >= 1.9 (tested 2.1+)  
+* psycopg2-binary
+* PostgreSQL 9.4+ (tested 9.6+)  
 
 ## Installation
 Install via pip:  
@@ -22,6 +19,14 @@ or via setup.py:
 ## Usage
 ### Prerequisites
 Install [postgresql-hll extension](https://github.com/citusdata/postgresql-hll#install)
+
+#### Creating hll extension
+If your user has super-admin privileges you can create Hll extension using migrations.
+If you use django 1.10+ you can use `django_pg_hll.migrations.HllExtension` in your migration file.
+If you have older version you can use the following:
+```python
+migrations.RunSQL('CREATE EXTENSION IF NOT EXISTS hll;', reverse_sql='DROP EXTENSION hll;')
+```
 
 ### Creating table with hll field
 * Add HllField to your model:
@@ -226,3 +231,27 @@ MyModel.objects.bulk_update_or_create([
     ], set_functions={'hll_field': 'hll_concat'}
 )
 ```
+
+
+## Running tests
+### Running in docker
+1. Install [docker and docker-compose](https://www.docker.com/)
+2. Run `docker build . --tag django-pg-hll` in project directory
+3. Run `docker-compose run run_tests` in project directory  
+
+### Running in virtual environment
+1. Install all requirements listed above  
+2. [Create virtual environment](https://docs.python.org/3/tutorial/venv.html)  
+3. Create a superuser named 'test' on your local Postgres instance:
+  ```sql
+  CREATE ROLE test;
+  ALTER ROLE test WITH SUPERUSER;
+  ALTER ROLE test WITH LOGIN;
+  ALTER ROLE test PASSWORD 'test';
+  CREATE DATABASE test OWNER test;
+  ```   
+3. Install requirements   
+  `pip3 install -U -r requirements-test.txt`  
+4. Start tests  
+  `python3 runtests.py`  
+   
