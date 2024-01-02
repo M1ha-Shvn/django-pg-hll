@@ -57,7 +57,14 @@ jobs:
 
     services:
       postgres:
-        image: jasei/postgres-hll:${{ matrix.postgres-version }}
+        # image: jasei/postgres-hll:${{ matrix.postgres-version }}
+        image: postgres-with-hll:${{ matrix.postgres-version }}
+        build:
+          context: .
+          dockerfile: .docker/postgres/Dockerfile
+          args:
+            - POSTGRES_VERSION=${{ matrix.postgres-version }}
+            - POSTGRES_IMAGE_TAG=:${{ matrix.postgres-version }}-bullseye
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
