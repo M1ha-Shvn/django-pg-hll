@@ -32,22 +32,22 @@ jobs:
             django-version: "5.0"
 
           # Django 4.0+ doesn't support PostgreSQL 9.6
-         - django-version: "4.0"
-           postgres-version: "9.6"
-         - django-version: "4.1"
-           postgres-version: "9.6"
-         - django-version: "4.2"
-           postgres-version: "9.6"
-         - django-version: "5.0"
-           postgres-version: "9.6"
+          - django-version: "4.0"
+            postgres-version: "9.6"
+          - django-version: "4.1"
+            postgres-version: "9.6"
+          - django-version: "4.2"
+            postgres-version: "9.6"
+          - django-version: "5.0"
+            postgres-version: "9.6"
 
-         # Django 4.1+ doesn't support PostgreSQL 10
-         - django-version: "4.1"
-           postgres-version: "10"
-         - django-version: "4.2"
-           postgres-version: "10"
-         - django-version: "5.0"
-           postgres-version: "10"
+          # Django 4.1+ doesn't support PostgreSQL 10
+          - django-version: "4.1"
+            postgres-version: "10"
+          - django-version: "4.2"
+            postgres-version: "10"
+          - django-version: "5.0"
+            postgres-version: "10"
 
          # Django 4.2+ doesn't support PostgreSQL 11
          - django-version: "4.2"
