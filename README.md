@@ -7,7 +7,6 @@ Provides a django wrapper for [postgresql-hll library by CitusData](https://gith
 ## Requirements
 * Python 3.5+  
 * django >= 1.9 (tested 2.1+)  
-* psycopg2-binary
 * PostgreSQL 9.4+ (tested 9.6+)  
 
 ## Installation
