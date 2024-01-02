@@ -32,7 +32,7 @@ jobs:
             django-version: "5.0"
 
           # Django 4.0+ doesn't support PostgreSQL 9.6
-          - django-version: "4.0"
+         - django-version: "4.0"
            postgres-version: "9.6"
          - django-version: "4.1"
            postgres-version: "9.6"
