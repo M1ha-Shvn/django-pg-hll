@@ -2,13 +2,7 @@
 version: "3.9"
 services:
   postgres_db:
-    image: postgres-with-hll:15
-    build:
-      context: .
-      dockerfile: .docker/postgres/Dockerfile
-      args:
-        - POSTGRES_VERSION=15
-        - POSTGRES_IMAGE_TAG=15-bullseye
+    image: hbontempo/postgres-hll:15-latest
     environment:
       - POSTGRES_PASSWORD=postgres
     volumes:
