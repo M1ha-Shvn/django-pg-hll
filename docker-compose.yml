@@ -2,11 +2,11 @@
 version: "3.9"
 services:
   postgres_db:
-    image: jasei/postgres-hll
+    image: hbontempo/postgres-hll:15-latest
     environment:
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - ./.docker/db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
+      - ./.docker/postgres/db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
     mem_limit: 1g
     cpus: 1
 
