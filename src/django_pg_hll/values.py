@@ -1,3 +1,4 @@
+from collections import defaultdict
 from copy import deepcopy
 from typing import Any
 
@@ -224,3 +225,30 @@ class HllSet(HllValue):
             params.extend(item_params)
 
         return sql, params
+
+
+class HllBulkSet(HllSet):
+    """
+    General HllSet adds values to set recursively using hll_hash_* and concatenate function.
+    This can lead to max_stack_depth limit error, if lots of values are inserted at once.
+    This class is a workaround for this problem.
+    It groups primitive values by its sql and passes all values as an array of base type.
+    """
+    def as_sql(self, compiler, connection, function=None, template=None):
+        items_by_sql = defaultdict(list)
+        for item in self.data:
+            sql, params = item.as_sql(compiler, connection)
+            items_by_sql[sql].extend(params)
+
+        sql_parts, params = [], []
+        for sql, values in items_by_sql.items():
+
+            # HACK Sql for HllDataValue contains %s placeholder. We will fill it with 'item' unnested field
+            sql_parts.append(f"(SELECT hll_add_agg({sql % 'item'}) FROM UNNEST(%s) AS t(item))")
+
+            params.append(values)
+
+        if not sql_parts:
+            return HllEmpty().as_sql(compiler, connection)
+
+        return " || ".join(sql_parts), params
