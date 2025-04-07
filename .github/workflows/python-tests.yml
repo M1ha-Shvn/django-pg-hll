@@ -37,6 +37,12 @@ jobs:
         - django-version: "5.1"
           postgres-version: "12"
 
+        # Python 3.13 does not work with django before django 4.1
+        - python-version: "3.13"
+          django-version: "3.2"
+        - python-version: "3.13"
+          django-version: "4.0"
+
     services:
       postgres:
         image: hbontempo/postgres-hll:${{ matrix.postgres-version }}-latest
