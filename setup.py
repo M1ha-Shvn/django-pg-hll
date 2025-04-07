@@ -13,10 +13,10 @@ with open('requirements.txt') as f:
 
 setup(
     name='django-pg-hll',
-    version='2.1.1',
+    version='2.2.0',
     packages=['django_pg_hll'],
     package_dir={'': 'src'},
-    url='https://github.com/M1hacka/django-pg-hll',
+    url='https://github.com/M1ha-Shvn/django-pg-hll',
     license='BSD 3-clause "New" or "Revised" License',
     author='Mikhail Shvein',
     author_email='work_shvein_mihail@mail.ru',

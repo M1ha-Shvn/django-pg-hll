@@ -1,9 +1,9 @@
-from unittest import TestCase
-
 from django.db import connection
 from django.db.models.sql import Query
+from django.test import TestCase
 
-from django_pg_hll import HllEmpty, HllSmallInt, HllInteger, HllBigint, HllBoolean, HllByteA, HllText, HllAny, HllSet
+from django_pg_hll import HllEmpty, HllSmallInt, HllInteger, HllBigint, HllBoolean, HllByteA, HllText, HllAny, HllSet, \
+    HllBulkSet
 from tests.compatibility import psycopg_binary_to_bytes
 from tests.models import TestModel
 
@@ -212,38 +212,82 @@ class HllAnyTest(ValueTest):
 
 
 class HllSetTest(ValueTest):
+    base_cls = HllSet
+
     def test_sql(self):
-        val = HllSet([1])
-        sql, params = val.as_sql(self.compiler, connection)
-        self.assertEqual('hll_empty() || hll_hash_smallint(%s::smallint)', sql)
-        self.assertListEqual([1], params)
+        with self.subTest("smallint"):
+            val = self.base_cls([1])
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('hll_empty() || hll_hash_smallint(%s::smallint)', sql)
+            self.assertListEqual([1], params)
 
-        val = HllSet([1, 100500])
-        sql, params = val.as_sql(self.compiler, connection)
-        self.assertEqual('hll_empty() || hll_hash_smallint(%s::smallint) || hll_hash_integer(%s::integer)', sql)
-        self.assertListEqual([1, 100500], params)
+        with self.subTest("different auto value types"):
+            val = self.base_cls([1, 100500])
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('hll_empty() || hll_hash_smallint(%s::smallint) || hll_hash_integer(%s::integer)', sql)
+            self.assertListEqual([1, 100500], params)
 
-        val = HllSet()
-        sql, params = val.as_sql(self.compiler, connection)
-        self.assertEqual('hll_empty()', sql)
-        self.assertListEqual([], params)
+        with self.subTest("empty"):
+            val = self.base_cls()
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('hll_empty()', sql)
+            self.assertListEqual([], params)
 
-        val = HllSet(HllInteger(1))
-        sql, params = val.as_sql(self.compiler, connection)
-        self.assertEqual('hll_empty() || hll_hash_integer(%s::integer)', sql)
-        self.assertListEqual([1], params)
+        with self.subTest("explicitly set hll value type"):
+            val = self.base_cls(HllInteger(1))
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('hll_empty() || hll_hash_integer(%s::integer)', sql)
+            self.assertListEqual([1], params)
+
+    def test_save(self):
+        TestModel.objects.create(hll_field=self.base_cls([i for i in range(10)]))
+
+        self.assertEqual(10, TestModel.objects.values_list("hll_field__cardinality", flat=True)[0])
 
     def test_check(self):
         # Check correct values
-        HllSet()
-        HllSet([False, 1, 4, 'test'])
-        HllSet('test')  # String is iterable
+        self.base_cls()
+        self.base_cls([False, 1, 4, 'test'])
+        self.base_cls('test')  # String is iterable
 
         with self.assertRaises(ValueError):
-            HllSet(1)
+            self.base_cls(1)
 
         with self.assertRaises(ValueError):
-            HllSet(None)
+            self.base_cls(None)
 
         with self.assertRaises(ValueError):
-            HllSet(True)
+            self.base_cls(True)
+
+
+class HllBulkSetTest(HllSetTest):
+    base_cls = HllBulkSet
+
+    def test_sql(self):
+        with self.subTest("smallint"):
+            val = self.base_cls([1])
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('(SELECT hll_add_agg(hll_hash_smallint(item::smallint)) FROM UNNEST(%s) AS t(item))', sql)
+            self.assertListEqual([[1]], params)
+
+        with self.subTest("different auto value types"):
+            val = self.base_cls([1, 100500])
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual(
+                '(SELECT hll_add_agg(hll_hash_smallint(item::smallint)) FROM UNNEST(%s) AS t(item)) '
+                '|| (SELECT hll_add_agg(hll_hash_integer(item::integer)) FROM UNNEST(%s) AS t(item))',
+                sql
+            )
+            self.assertListEqual([[1], [100500]], params)
+
+        with self.subTest("empty"):
+            val = self.base_cls()
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('hll_empty()', sql)
+            self.assertListEqual([], params)
+
+        with self.subTest("explicitly set hll value type"):
+            val = self.base_cls(HllInteger(1))
+            sql, params = val.as_sql(self.compiler, connection)
+            self.assertEqual('(SELECT hll_add_agg(hll_hash_integer(item::integer)) FROM UNNEST(%s) AS t(item))', sql)
+            self.assertListEqual([[1]], params)

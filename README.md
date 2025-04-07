@@ -5,9 +5,9 @@
 Provides a django wrapper for [postgresql-hll library by CitusData](https://github.com/citusdata/postgresql-hll#the-importance-of-hashing)
 
 ## Requirements
-* Python 3.5+  
-* django >= 1.9 (tested 2.2+)  
-* PostgreSQL 9.4+ (tested 9.6+)  
+* Python 3.8+  
+* django >= 1.9 (tested 3.2+)  
+* PostgreSQL 9.4+ (tested 12+)  
 
 ## Installation
 Install via pip:  
@@ -84,11 +84,19 @@ instance.save()
 Hll values can be chained with each other and functions like `django.db.models.F` using `|` operator.  
 The chaining result will be `django_pg_hll.values.HllSet` instance, which can be also saved to database.  
 You can also chain simple values and iterables. 
-In this case, library will try to detect appropriate hashing function, based on value.  
-*Important*: Native django functions can't be used as chain start, as `|` operator is redeclared for HllValue instances.  
+In this case, library will try to detect appropriate hashing function, based on value.
+
+**Important notes**
+  1. If you insert lots of values at once, it is recommended to use `django_pg_hll.values.HllBulkSet` instead of simple concatenation.
+      The reason, is that both django `Func` and Postgres `||` functions have recursive nature. 
+      Combining lots of values over `|` operator can lead to django's "Max recursion depth exceeded" and Postgres `max_stack_depth` errors.
+      `HllBulkSet` solves this problem, by passing values to Postgres as array and performing more sophisticated SQL on insert.
+
+   2. Native django functions can't be used as chain start, as `|` operator is redeclared for HllValue instances.
+
 Example:
 ```python
-from django_pg_hll import HllInteger
+from django_pg_hll.values import HllInteger, HllBulkSet
 from django.db.models import F
 
 instance = MyModel.objects.create(hll=HllInteger(123))
@@ -103,6 +111,8 @@ instance.hll |= {1, 2, 3, 4, 5}  # set. HllSmallInt will be used.
 
 # This throws exception, as F function doesn't support bitor operator
 instance.hll = F('hll') | HllInteger(456)
+
+instance.hll = HllBulkSet([HllInteger(i) for i in range(10000)])
 ```
  
 #### Hashing seed
