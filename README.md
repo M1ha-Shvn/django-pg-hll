@@ -5,9 +5,9 @@
 Provides a django wrapper for [postgresql-hll library by CitusData](https://github.com/citusdata/postgresql-hll#the-importance-of-hashing)
 
 ## Requirements
-* Python 3.5+  
-* django >= 1.9 (tested 2.2+)  
-* PostgreSQL 9.4+ (tested 9.6+)  
+* Python 3.8+  
+* django >= 1.9 (tested 3.2+)  
+* PostgreSQL 9.4+ (tested 12+)  
 
 ## Installation
 Install via pip:  

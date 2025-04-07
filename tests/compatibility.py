@@ -17,4 +17,3 @@ def psycopg_binary_to_bytes(data):  # type: (Union[bytes, 'Binary']) -> bytes
         return data
 
     return data.adapted
-
